@@ -6,6 +6,9 @@ import { useContext } from 'react';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import Dashboard from './pages/dashboard/Dashboard';
+import FIRList from './pages/firs/FIRList';
+import CreateFIR from './pages/firs/CreateFIR';
+import FIRDetails from './pages/firs/FIRDetails';
 import ProtectedRoute from './routes/ProtectedRoute';
 import ThemeToggle from './components/common/ThemeToggle';
 
@@ -35,11 +38,10 @@ function App() {
               </PublicRoute>
             } />
             
-            <Route path="/" element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } />
+            <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/firs" element={<ProtectedRoute><FIRList /></ProtectedRoute>} />
+            <Route path="/firs/new" element={<ProtectedRoute><CreateFIR /></ProtectedRoute>} />
+            <Route path="/firs/:id" element={<ProtectedRoute><FIRDetails /></ProtectedRoute>} />
           </Routes>
         </Router>
       </AuthProvider>

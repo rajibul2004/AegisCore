@@ -73,4 +73,27 @@ const validateFIR = (req, res, next) => {
   next();
 };
 
-module.exports = { validateRegister, validateLogin, validateFIR };
+const validateCase = (req, res, next) => {
+  const errors = [];
+  const { firId, title, description } = req.body;
+
+  if (!firId) {
+    errors.push('FIR ID is required to create a case');
+  }
+
+  if (!title || title.trim().length < 5) {
+    errors.push('Case title must be at least 5 characters long');
+  }
+
+  if (!description || description.trim().length < 20) {
+    errors.push('Case description must provide at least 20 characters of detail');
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({ success: false, errors });
+  }
+
+  next();
+};
+
+module.exports = { validateRegister, validateLogin, validateFIR, validateCase };
