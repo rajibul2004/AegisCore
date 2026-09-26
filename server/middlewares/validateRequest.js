@@ -96,4 +96,23 @@ const validateCase = (req, res, next) => {
   next();
 };
 
-module.exports = { validateRegister, validateLogin, validateFIR, validateCase };
+const validateSuspect = (req, res, next) => {
+  const errors = [];
+  const { name, cases } = req.body;
+
+  if (!name || name.trim().length < 2) {
+    errors.push('Suspect name must be at least 2 characters long');
+  }
+
+  if (cases && !Array.isArray(cases)) {
+    errors.push('Cases must be an array of Case IDs');
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({ success: false, errors });
+  }
+
+  next();
+};
+
+module.exports = { validateRegister, validateLogin, validateFIR, validateCase, validateSuspect };

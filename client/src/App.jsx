@@ -12,6 +12,9 @@ import FIRDetails from './pages/firs/FIRDetails';
 import CaseList from './pages/cases/CaseList';
 import CreateCase from './pages/cases/CreateCase';
 import CaseDetails from './pages/cases/CaseDetails';
+import SuspectList from './pages/suspects/SuspectList';
+import CreateSuspect from './pages/suspects/CreateSuspect';
+import SuspectDetails from './pages/suspects/SuspectDetails';
 import ProtectedRoute from './routes/ProtectedRoute';
 import ThemeToggle from './components/common/ThemeToggle';
 
@@ -27,19 +30,10 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <Router>
-          {/* ThemeToggle is placed outside Routes so it is visible on all pages */}
           <ThemeToggle />
           <Routes>
-            <Route path="/login" element={
-              <PublicRoute>
-                <Login />
-              </PublicRoute>
-            } />
-            <Route path="/register" element={
-              <PublicRoute>
-                <Register />
-              </PublicRoute>
-            } />
+            <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+            <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
             
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             
@@ -52,6 +46,11 @@ function App() {
             <Route path="/cases" element={<ProtectedRoute><CaseList /></ProtectedRoute>} />
             <Route path="/cases/new" element={<ProtectedRoute><CreateCase /></ProtectedRoute>} />
             <Route path="/cases/:id" element={<ProtectedRoute><CaseDetails /></ProtectedRoute>} />
+
+            {/* Suspect Routes */}
+            <Route path="/suspects" element={<ProtectedRoute><SuspectList /></ProtectedRoute>} />
+            <Route path="/suspects/new" element={<ProtectedRoute><CreateSuspect /></ProtectedRoute>} />
+            <Route path="/suspects/:id" element={<ProtectedRoute><SuspectDetails /></ProtectedRoute>} />
           </Routes>
         </Router>
       </AuthProvider>

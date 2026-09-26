@@ -7,6 +7,7 @@ const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const firRoutes = require('./routes/firRoutes');
 const caseRoutes = require('./routes/caseRoutes');
+const suspectRoutes = require('./routes/suspectRoutes');
 const testRoutes = require('./routes/testRoutes');
 
 const app = express();
@@ -36,6 +37,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/firs', firRoutes);
 app.use('/api/cases', caseRoutes);
+app.use('/api/suspects', suspectRoutes);
 app.use('/api/test', testRoutes);
 
 app.get('/', (req, res) => {
