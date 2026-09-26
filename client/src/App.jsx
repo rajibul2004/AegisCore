@@ -9,6 +9,9 @@ import Dashboard from './pages/dashboard/Dashboard';
 import FIRList from './pages/firs/FIRList';
 import CreateFIR from './pages/firs/CreateFIR';
 import FIRDetails from './pages/firs/FIRDetails';
+import CaseList from './pages/cases/CaseList';
+import CreateCase from './pages/cases/CreateCase';
+import CaseDetails from './pages/cases/CaseDetails';
 import ProtectedRoute from './routes/ProtectedRoute';
 import ThemeToggle from './components/common/ThemeToggle';
 
@@ -39,9 +42,16 @@ function App() {
             } />
             
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            
+            {/* FIR Routes */}
             <Route path="/firs" element={<ProtectedRoute><FIRList /></ProtectedRoute>} />
             <Route path="/firs/new" element={<ProtectedRoute><CreateFIR /></ProtectedRoute>} />
             <Route path="/firs/:id" element={<ProtectedRoute><FIRDetails /></ProtectedRoute>} />
+            
+            {/* Case Routes */}
+            <Route path="/cases" element={<ProtectedRoute><CaseList /></ProtectedRoute>} />
+            <Route path="/cases/new" element={<ProtectedRoute><CreateCase /></ProtectedRoute>} />
+            <Route path="/cases/:id" element={<ProtectedRoute><CaseDetails /></ProtectedRoute>} />
           </Routes>
         </Router>
       </AuthProvider>
