@@ -1,1 +1,8 @@
 @import 'tailwindcss';
+
+@custom-variant dark (&:is(.dark *));
+
+/* Smooth transition for background colors globally */
+html {
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
