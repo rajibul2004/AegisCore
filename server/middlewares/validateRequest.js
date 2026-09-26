@@ -44,4 +44,33 @@ const validateLogin = (req, res, next) => {
   next();
 };
 
-module.exports = { validateRegister, validateLogin };
+const validateFIR = (req, res, next) => {
+  const errors = [];
+  const { title, description, incidentDate, location } = req.body;
+
+  if (!title || title.trim().length < 5) {
+    errors.push('Title must be at least 5 characters long');
+  }
+
+  if (!description || description.trim().length < 20) {
+    errors.push('Description must provide at least 20 characters of detail');
+  }
+
+  if (!incidentDate || isNaN(Date.parse(incidentDate))) {
+    errors.push('A valid incident date is required');
+  } else if (new Date(incidentDate) > new Date()) {
+    errors.push('Incident date cannot be in the future');
+  }
+
+  if (!location || !location.address || location.address.trim().length < 5) {
+    errors.push('A specific incident address is required');
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({ success: false, errors });
+  }
+
+  next();
+};
+
+module.exports = { validateRegister, validateLogin, validateFIR };
