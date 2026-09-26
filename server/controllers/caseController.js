@@ -55,12 +55,52 @@ const getCases = async (req, res) => {
     if (req.query.status) query.status = req.query.status;
     if (req.query.priority) query.priority = req.query.priority;
     if (req.query.assignedOfficer) query.assignedOfficer = req.query.assignedOfficer;
+    if (req.query.caseNumber) {
+      query.caseNumber = { $regex: req.query.caseNumber, $options: 'i' };
+    }
+    
+    // Text search
+    if (req.query.search) {
+      query.$or = [
+        { title: { $regex: req.query.search, $options: 'i' } },
+        { description: { $regex: req.query.search, $options: 'i' } }
+      ];
+    }
+    
+    // Date ranges
+    if (req.query.startDate || req.query.endDate) {
+      query.createdAt = {};
+      if (req.query.startDate) query.createdAt.$gte = new Date(req.query.startDate);
+      if (req.query.endDate) {
+        const end = new Date(req.query.endDate);
+        end.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = end;
+      }
+    }
 
-    // If public user, they can only see cases linked to their FIRs
+    // Advanced relational query: Filter cases by FIR Number (requires lookup first)
+    if (req.query.firNumber) {
+      const matchedFIRs = await FIR.find({ 
+        firNumber: { $regex: req.query.firNumber, $options: 'i' } 
+      }).select('_id');
+      const matchedFirIds = matchedFIRs.map(f => f._id);
+      
+      // If we already had FIR logic (e.g. public user), intersect them.
+      // Otherwise, just set it.
+      query.fir = { $in: matchedFirIds };
+    }
+
+    // If public user, they can ONLY see cases linked to their FIRs
     if (req.user.role === 'public') {
       const userFIRs = await FIR.find({ complainant: req.user._id }).select('_id');
-      const firIds = userFIRs.map(f => f._id);
-      query.fir = { $in: firIds };
+      const userFirIds = userFIRs.map(f => f._id);
+      
+      // Intersect with any existing FIR query
+      if (query.fir && query.fir.$in) {
+        query.fir.$in = query.fir.$in.filter(id => userFirIds.some(uid => uid.equals(id)));
+      } else {
+        query.fir = { $in: userFirIds };
+      }
     }
 
     const total = await Case.countDocuments(query);

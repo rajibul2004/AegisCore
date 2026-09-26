@@ -40,9 +40,30 @@ const getFIRs = async (req, res) => {
       query.complainant = req.user._id;
     }
 
-    // Optional filters for Police/Admin
+    // Advanced Filtering
     if (req.query.status) query.status = req.query.status;
     if (req.query.priority) query.priority = req.query.priority;
+    if (req.query.firNumber) {
+      query.firNumber = { $regex: req.query.firNumber, $options: 'i' };
+    }
+    if (req.query.location) {
+      query.location = { $regex: req.query.location, $options: 'i' };
+    }
+    if (req.query.search) {
+      query.$or = [
+        { title: { $regex: req.query.search, $options: 'i' } },
+        { description: { $regex: req.query.search, $options: 'i' } }
+      ];
+    }
+    if (req.query.startDate || req.query.endDate) {
+      query.createdAt = {};
+      if (req.query.startDate) query.createdAt.$gte = new Date(req.query.startDate);
+      if (req.query.endDate) {
+        const end = new Date(req.query.endDate);
+        end.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = end;
+      }
+    }
 
     const total = await FIR.countDocuments(query);
     const firs = await FIR.find(query)
