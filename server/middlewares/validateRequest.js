@@ -25,4 +25,23 @@ const validateRegister = (req, res, next) => {
   next();
 };
 
-module.exports = { validateRegister };
+const validateLogin = (req, res, next) => {
+  const errors = [];
+  const { email, password } = req.body;
+
+  if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+    errors.push('A valid email is required');
+  }
+
+  if (!password) {
+    errors.push('Password is required');
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({ success: false, errors });
+  }
+
+  next();
+};
+
+module.exports = { validateRegister, validateLogin };
