@@ -10,6 +10,7 @@ const firRoutes = require('./routes/firRoutes');
 const caseRoutes = require('./routes/caseRoutes');
 const suspectRoutes = require('./routes/suspectRoutes');
 const evidenceRoutes = require('./routes/evidenceRoutes');
+const reportRoutes = require('./routes/reportRoutes');
 const testRoutes = require('./routes/testRoutes');
 
 const app = express();
@@ -44,6 +45,7 @@ app.use('/api/firs', firRoutes);
 app.use('/api/cases', caseRoutes);
 app.use('/api/suspects', suspectRoutes);
 app.use('/api/evidence', evidenceRoutes);
+app.use('/api/reports', reportRoutes);
 app.use('/api/test', testRoutes);
 
 app.get('/', (req, res) => {

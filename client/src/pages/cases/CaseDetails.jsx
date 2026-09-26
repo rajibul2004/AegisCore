@@ -4,6 +4,7 @@ import { caseService } from '../../api/caseService';
 import { AuthContext } from '../../context/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import EvidenceManager from '../../components/evidence/EvidenceManager';
+import ReportManager from '../../components/reports/ReportManager';
 import { 
   ArrowLeft, FileText, User, Shield, 
   Clock, AlertCircle, Edit, Trash2, Check, Loader2, Link as LinkIcon 
@@ -274,6 +275,9 @@ const CaseDetails = () => {
 
           {/* Mount the Evidence Manager Here */}
           <EvidenceManager caseId={investigationCase._id} />
+
+          {/* Mount the Report Manager Here */}
+          <ReportManager caseId={investigationCase._id} />
 
         </div>
 
