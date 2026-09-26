@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { caseService } from '../../api/caseService';
 import { AuthContext } from '../../context/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
+import EvidenceManager from '../../components/evidence/EvidenceManager';
 import { 
   ArrowLeft, FileText, User, Shield, 
   Clock, AlertCircle, Edit, Trash2, Check, Loader2, Link as LinkIcon 
@@ -270,6 +271,10 @@ const CaseDetails = () => {
               )}
             </div>
           </div>
+
+          {/* Mount the Evidence Manager Here */}
+          <EvidenceManager caseId={investigationCase._id} />
+
         </div>
 
         {/* Sidebar Info */}

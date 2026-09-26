@@ -4,10 +4,12 @@ const cookieParser = require('cookie-parser');
 require('dotenv').config();
 
 const connectDB = require('./config/db');
+const path = require('path');
 const authRoutes = require('./routes/authRoutes');
 const firRoutes = require('./routes/firRoutes');
 const caseRoutes = require('./routes/caseRoutes');
 const suspectRoutes = require('./routes/suspectRoutes');
+const evidenceRoutes = require('./routes/evidenceRoutes');
 const testRoutes = require('./routes/testRoutes');
 
 const app = express();
@@ -21,6 +23,9 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// Expose the local uploads folder statically for development
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/api/health', (req, res) => {
   const mongoose = require('mongoose');
@@ -38,6 +43,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/firs', firRoutes);
 app.use('/api/cases', caseRoutes);
 app.use('/api/suspects', suspectRoutes);
+app.use('/api/evidence', evidenceRoutes);
 app.use('/api/test', testRoutes);
 
 app.get('/', (req, res) => {
