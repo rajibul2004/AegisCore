@@ -1,13 +1,14 @@
 const Report = require('../models/Report');
 const Case = require('../models/Case');
 const aiService = require('../services/aiService');
+const notificationService = require('../services/notificationService');
 
 const createReport = async (req, res) => {
   try {
     const { caseId, title, content, reportType } = req.body;
 
     // Verify Case exists
-    const investigationCase = await Case.findById(caseId);
+    const investigationCase = await Case.findById(caseId).populate('fir');
     if (!investigationCase) {
       return res.status(404).json({ success: false, message: 'Associated Case not found' });
     }
@@ -23,6 +24,18 @@ const createReport = async (req, res) => {
       content,
       // aiSummary, // Will be enabled when Groq is integrated
     });
+
+    // Notify assigned officer if someone else created it
+    if (investigationCase.assignedOfficer.toString() !== req.user._id.toString()) {
+      await notificationService.createNotification({
+        recipient: investigationCase.assignedOfficer,
+        sender: req.user._id,
+        type: 'report_created',
+        title: 'New Report Filed',
+        message: `A new report "${title}" was filed on Case: ${investigationCase.caseNumber}`,
+        link: `/cases/${caseId}`
+      });
+    }
 
     res.status(201).json({
       success: true,

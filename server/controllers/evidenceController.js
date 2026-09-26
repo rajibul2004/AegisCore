@@ -1,6 +1,7 @@
 const Evidence = require('../models/Evidence');
 const Case = require('../models/Case');
 const storageService = require('../services/storageService');
+const notificationService = require('../services/notificationService');
 
 const uploadEvidence = async (req, res) => {
   try {
@@ -12,7 +13,7 @@ const uploadEvidence = async (req, res) => {
     }
 
     // Verify Case exists
-    const investigationCase = await Case.findById(caseId);
+    const investigationCase = await Case.findById(caseId).populate('fir');
     if (!investigationCase) {
       return res.status(404).json({ success: false, message: 'Associated Case not found' });
     }
@@ -30,6 +31,30 @@ const uploadEvidence = async (req, res) => {
       size: file.size,
       uploadedBy: req.user._id,
     });
+
+    // Notify the assigned officer if someone else uploaded it
+    if (investigationCase.assignedOfficer.toString() !== req.user._id.toString()) {
+      await notificationService.createNotification({
+        recipient: investigationCase.assignedOfficer,
+        sender: req.user._id,
+        type: 'evidence_uploaded',
+        title: 'New Evidence Uploaded',
+        message: `New evidence "${title}" added to Case: ${investigationCase.caseNumber}`,
+        link: `/cases/${caseId}`
+      });
+    }
+
+    // Also notify complainant
+    if (investigationCase.fir && investigationCase.fir.complainant && investigationCase.fir.complainant.toString() !== req.user._id.toString()) {
+       await notificationService.createNotification({
+        recipient: investigationCase.fir.complainant,
+        sender: req.user._id,
+        type: 'evidence_uploaded',
+        title: 'Case Update',
+        message: `New evidence was attached to your case (${investigationCase.caseNumber}).`,
+        link: `/cases/${caseId}`
+      });
+    }
 
     res.status(201).json({
       success: true,

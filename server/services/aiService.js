@@ -1,28 +1,99 @@
+const Groq = require('groq-sdk');
+const AILog = require('../models/AILog');
+
 /**
  * AI Service Layer
- * 
- * This service acts as an abstraction for future AI processing (e.g., Groq AI).
- * Currently, it contains mock/placeholder logic.
- * When Groq AI is integrated, the logic will be updated here without needing 
- * to rewrite the controllers or models.
+ * Abstracts Groq AI interactions. Keeps the API key purely on the backend.
+ * Provides timeout handling, rate limiting detection, and audit logging.
  */
-
 class AIService {
-  
+  constructor() {
+    this.groq = new Groq({
+      apiKey: process.env.GROQ_API_KEY || 'MISSING_API_KEY' // Fallback to prevent immediate crash if env is missing, but will fail gracefully
+    });
+    // Define the default model for various tasks. Fast/cheap for summaries, big for analysis.
+    this.defaultModel = 'llama-3.1-8b-instant';
+  }
+
+  /**
+   * Safe execution wrapper for AI calls that handles logging and standard errors.
+   */
+  async _executeAIOperation(userId, action, prompt, systemPrompt, modelConfig) {
+    const startTime = Date.now();
+    let logStatus = 'success';
+    let errorMessage = null;
+    let aiResponseText = null;
+
+    try {
+      if (this.groq.apiKey === 'MISSING_API_KEY') {
+        throw new Error('Groq API Key is not configured on the backend environment.');
+      }
+
+      const response = await this.groq.chat.completions.create({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: prompt }
+        ],
+        model: modelConfig?.model || this.defaultModel,
+        temperature: modelConfig?.temperature || 0.3, // Low temp for factual responses
+        max_tokens: modelConfig?.max_tokens || 1024,
+      });
+
+      aiResponseText = response.choices[0]?.message?.content || '';
+      return aiResponseText;
+
+    } catch (error) {
+      errorMessage = error.message;
+
+      if (error instanceof Groq.APIError) {
+        if (error.status === 429) {
+          logStatus = 'rate_limited';
+          throw new Error('AI Service is currently rate limited. Please try again later.');
+        }
+        if (error.status >= 500) {
+          logStatus = 'timeout'; // Treating 500+ as upstream timeout/failure
+          throw new Error('AI Service is currently unavailable. Please try again later.');
+        }
+      }
+      
+      logStatus = 'error';
+      throw new Error(`AI processing failed: ${error.message}`);
+      
+    } finally {
+      const processingTimeMs = Date.now() - startTime;
+      
+      // Fire-and-forget Audit Log
+      AILog.create({
+        user: userId,
+        action,
+        prompt,
+        response: aiResponseText,
+        modelUsed: modelConfig?.model || this.defaultModel,
+        processingTimeMs,
+        status: logStatus,
+        errorMessage
+      }).catch(err => console.error('Failed to save AI audit log:', err));
+    }
+  }
+
+  /**
+   * Generic text test for the API
+   */
+  async testPrompt(userId, userPrompt) {
+    const systemPrompt = "You are CaseIntel, a highly secure AI assistant for law enforcement. Answer the user's prompt politely but concisely. Do not make autonomous decisions or provide tactical instructions.";
+    return this._executeAIOperation(userId, 'test_prompt', userPrompt, systemPrompt);
+  }
+
   /**
    * Generates a summary for a given block of text.
-   * @param {String} content - The raw report content
-   * @returns {Promise<String>} - The AI-generated summary
    */
-  async generateSummary(content) {
-    // TODO: Integrate Groq AI here in the next phase
-    
-    // For now, return a placeholder or an empty string, 
-    // or just a basic truncation for testing purposes.
+  async generateSummary(userId, content) {
     if (!content) return '';
     
-    // Placeholder behavior until AI is implemented
-    return "AI Summarization is currently pending implementation. The Groq integration will process this report shortly.";
+    const systemPrompt = "You are an assistant for law enforcement. Summarize the following case report text. Be concise, objective, and highlight key facts (suspects, dates, locations, crucial evidence). Do not invent information.";
+    
+    // We pass null for modelConfig to use defaults
+    return this._executeAIOperation(userId, 'summarize_report', content, systemPrompt);
   }
 }
 

@@ -2,6 +2,7 @@ import { useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import { Menu, LogOut, ShieldAlert } from 'lucide-react';
 import ThemeToggle from '../common/ThemeToggle';
+import NotificationBell from './NotificationBell';
 
 const Navbar = ({ onMenuClick }) => {
   const { user, logout } = useContext(AuthContext);
@@ -23,6 +24,9 @@ const Navbar = ({ onMenuClick }) => {
       </div>
       
       <div className="flex items-center space-x-4">
+        
+        <NotificationBell />
+
         <div className="hidden sm:flex items-center space-x-3">
           <div className="flex flex-col text-right">
             <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">{user?.name}</span>

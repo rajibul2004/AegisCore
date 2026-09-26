@@ -59,6 +59,13 @@ const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide an email and password',
+      });
+    }
+
     const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
 
     if (!user) {
@@ -72,6 +79,13 @@ const login = async (req, res) => {
       return res.status(403).json({
         success: false,
         message: 'Account has been deactivated — contact admin',
+      });
+    }
+
+    if (!user.password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Database Error: Password hash missing for this user. Please register a new account.',
       });
     }
 
@@ -99,6 +113,7 @@ const login = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error('LOGIN ERROR DETAILS:', error);
     res.status(500).json({
       success: false,
       message: 'Server error during login',

@@ -1,5 +1,6 @@
 const Case = require('../models/Case');
 const FIR = require('../models/FIR');
+const notificationService = require('../services/notificationService');
 
 const createCase = async (req, res) => {
   try {
@@ -17,17 +18,31 @@ const createCase = async (req, res) => {
       return res.status(400).json({ success: false, message: 'A case already exists for this FIR' });
     }
 
+    const assignedTo = assignedOfficer || req.user._id;
+
     const newCase = await Case.create({
       fir: firId,
       title,
       description,
       priority: priority || fir.priority,
-      assignedOfficer: assignedOfficer || req.user._id, // Assign to creator by default
+      assignedOfficer: assignedTo,
     });
 
     // Update FIR status automatically
     fir.status = 'registered';
     await fir.save();
+
+    // Trigger Notification for the assigned officer
+    if (assignedTo.toString() !== req.user._id.toString()) {
+      await notificationService.createNotification({
+        recipient: assignedTo,
+        sender: req.user._id,
+        type: 'case_assigned',
+        title: 'New Case Assigned',
+        message: `You have been assigned to Case: ${newCase.caseNumber} - ${newCase.title}`,
+        link: `/cases/${newCase._id}`
+      });
+    }
 
     res.status(201).json({
       success: true,
@@ -163,6 +178,11 @@ const updateCase = async (req, res) => {
   try {
     const { status, priority, assignedOfficer, closureReason } = req.body;
     
+    const existingCase = await Case.findById(req.params.id).populate('fir', 'firNumber complainant');
+    if (!existingCase) {
+      return res.status(404).json({ success: false, message: 'Case not found' });
+    }
+
     const updateFields = {};
     if (status) updateFields.status = status;
     if (priority) updateFields.priority = priority;
@@ -180,15 +200,11 @@ const updateCase = async (req, res) => {
       updateFields,
       { new: true, runValidators: true }
     )
-    .populate('fir', 'firNumber')
+    .populate('fir', 'firNumber complainant')
     .populate('assignedOfficer', 'name badgeNumber');
 
-    if (!updatedCase) {
-      return res.status(404).json({ success: false, message: 'Case not found' });
-    }
-
     // Sync FIR status if Case status changed
-    if (status) {
+    if (status && status !== existingCase.status) {
       const firStatusMap = {
         'registered': 'registered',
         'under_investigation': 'investigating',
@@ -200,6 +216,30 @@ const updateCase = async (req, res) => {
       if (firStatusMap[status]) {
         await FIR.findByIdAndUpdate(updatedCase.fir._id, { status: firStatusMap[status] });
       }
+
+      // Notify the complainant about status change
+      if (updatedCase.fir && updatedCase.fir.complainant) {
+        await notificationService.createNotification({
+          recipient: updatedCase.fir.complainant,
+          sender: req.user._id,
+          type: 'status_changed',
+          title: 'Case Status Updated',
+          message: `The status of your case (${updatedCase.caseNumber}) is now: ${status.replace('_', ' ')}.`,
+          link: `/cases/${updatedCase._id}`
+        });
+      }
+    }
+
+    // Notify newly assigned officer
+    if (assignedOfficer && existingCase.assignedOfficer.toString() !== assignedOfficer.toString()) {
+      await notificationService.createNotification({
+        recipient: assignedOfficer,
+        sender: req.user._id,
+        type: 'case_assigned',
+        title: 'Reassigned to Case',
+        message: `You have been reassigned to Case: ${updatedCase.caseNumber}`,
+        link: `/cases/${updatedCase._id}`
+      });
     }
 
     res.status(200).json({

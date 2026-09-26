@@ -15,6 +15,7 @@ import CaseDetails from './pages/cases/CaseDetails';
 import SuspectList from './pages/suspects/SuspectList';
 import CreateSuspect from './pages/suspects/CreateSuspect';
 import SuspectDetails from './pages/suspects/SuspectDetails';
+import NotificationsList from './pages/notifications/NotificationsList';
 import ProtectedRoute from './routes/ProtectedRoute';
 import ThemeToggle from './components/common/ThemeToggle';
 
@@ -51,6 +52,9 @@ function App() {
             <Route path="/suspects" element={<ProtectedRoute><SuspectList /></ProtectedRoute>} />
             <Route path="/suspects/new" element={<ProtectedRoute><CreateSuspect /></ProtectedRoute>} />
             <Route path="/suspects/:id" element={<ProtectedRoute><SuspectDetails /></ProtectedRoute>} />
+
+            {/* Notification Routes */}
+            <Route path="/notifications" element={<ProtectedRoute><NotificationsList /></ProtectedRoute>} />
           </Routes>
         </Router>
       </AuthProvider>

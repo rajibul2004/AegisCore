@@ -1,57 +1,152 @@
-import { Users, Server, ShieldCheck, Activity } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { statsService } from '../../api/statsService';
+import { Users, FileText, Shield, AlertCircle, CheckCircle, Clock, Briefcase, Fingerprint } from 'lucide-react';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
+  PieChart, Pie, Cell
+} from 'recharts';
+
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 const AdminDashboard = () => {
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await statsService.getDashboardStats();
+        setStats(res.data);
+      } catch (err) {
+        setError('Failed to load dashboard statistics');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
+
+  if (loading) return (
+    <div className="flex justify-center items-center h-64">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+    </div>
+  );
+
+  if (error) return (
+    <div className="bg-red-50 text-red-600 p-4 rounded-lg">{error}</div>
+  );
+
+  const { metrics, charts } = stats;
+
   return (
-    <div className="animate-in fade-in duration-500">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">System Administration</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">Platform overview and system health metrics.</p>
+    <div className="space-y-6 animate-in fade-in">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">System Overview</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Real-time database statistics and aggregations.</p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {/* Stat Cards */}
-        {[
-          { title: 'Total Users', value: '1,245', icon: <Users className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />, bg: 'bg-indigo-50 dark:bg-indigo-900/30' },
-          { title: 'Active Officers', value: '342', icon: <ShieldCheck className="h-6 w-6 text-blue-600 dark:text-blue-400" />, bg: 'bg-blue-50 dark:bg-blue-900/30' },
-          { title: 'System Health', value: '99.9%', icon: <Server className="h-6 w-6 text-green-600 dark:text-green-400" />, bg: 'bg-green-50 dark:bg-green-900/30' },
-          { title: 'AI API Usage', value: '45k', icon: <Activity className="h-6 w-6 text-purple-600 dark:text-purple-400" />, bg: 'bg-purple-50 dark:bg-purple-900/30' },
-        ].map((stat, i) => (
-          <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{stat.title}</p>
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{stat.value}</h3>
-            </div>
-            <div className={`p-3 rounded-xl ${stat.bg}`}>
-              {stat.icon}
-            </div>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center">
+          <div className="p-4 bg-indigo-50 dark:bg-indigo-900/30 rounded-full mr-4 text-indigo-600 dark:text-indigo-400">
+            <FileText className="w-8 h-8" />
           </div>
-        ))}
+          <div>
+            <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total FIRs</p>
+            <h3 className="text-3xl font-bold text-gray-900 dark:text-white">{metrics.totalFIRs}</h3>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center">
+          <div className="p-4 bg-purple-50 dark:bg-purple-900/30 rounded-full mr-4 text-purple-600 dark:text-purple-400">
+            <Briefcase className="w-8 h-8" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Active Cases</p>
+            <h3 className="text-3xl font-bold text-gray-900 dark:text-white">{metrics.activeCases}</h3>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center">
+          <div className="p-4 bg-green-50 dark:bg-green-900/30 rounded-full mr-4 text-green-600 dark:text-green-400">
+            <CheckCircle className="w-8 h-8" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Solved Cases</p>
+            <h3 className="text-3xl font-bold text-gray-900 dark:text-white">{metrics.solvedCases}</h3>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center">
+          <div className="p-4 bg-orange-50 dark:bg-orange-900/30 rounded-full mr-4 text-orange-600 dark:text-orange-400">
+            <Fingerprint className="w-8 h-8" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Suspect Profiles</p>
+            <h3 className="text-3xl font-bold text-gray-900 dark:text-white">{metrics.totalSuspects}</h3>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center">
+          <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-full mr-4 text-blue-600 dark:text-blue-400">
+            <Shield className="w-8 h-8" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Evidence Files</p>
+            <h3 className="text-3xl font-bold text-gray-900 dark:text-white">{metrics.totalEvidence}</h3>
+          </div>
+        </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Recent System Audit Logs</h3>
-        </div>
-        <div className="p-6">
-          <div className="space-y-4">
-            {[
-              { action: 'New Officer Account created', user: 'Admin System', time: '10 mins ago', type: 'info' },
-              { action: 'Failed login attempt detected', user: 'IP: 192.168.1.45', time: '1 hour ago', type: 'warning' },
-              { action: 'Database backup completed', user: 'System Auto', time: '3 hours ago', type: 'success' },
-            ].map((log, i) => (
-              <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800">
-                <div className="flex items-center">
-                  <div className={`w-2 h-2 rounded-full mr-4 ${log.type === 'warning' ? 'bg-amber-500' : log.type === 'success' ? 'bg-green-500' : 'bg-blue-500'}`}></div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{log.action}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{log.user}</p>
-                  </div>
-                </div>
-                <span className="text-xs text-gray-400 dark:text-gray-500">{log.time}</span>
-              </div>
-            ))}
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+        
+        {/* Cases by Status (Pie Chart) */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Cases by Status</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={charts.casesByStatus}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {charts.casesByStatus.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <RechartsTooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
         </div>
+
+        {/* 7 Day FIR Trend (Bar Chart) */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">FIRs Filed (Last 7 Days)</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={charts.firTrend}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" opacity={0.2} />
+                <XAxis dataKey="date" tick={{fontSize: 12}} stroke="#9CA3AF" />
+                <YAxis allowDecimals={false} stroke="#9CA3AF" />
+                <RechartsTooltip cursor={{fill: 'rgba(79, 70, 229, 0.1)'}} />
+                <Bar dataKey="count" fill="#4F46E5" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
       </div>
     </div>
   );
