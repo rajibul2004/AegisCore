@@ -1,13 +1,15 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useContext } from 'react';
 import { Bell, Check, Circle } from 'lucide-react';
 import { notificationService } from '../../api/notificationService';
 import { Link } from 'react-router-dom';
+import { SocketContext } from '../../context/SocketContext';
 
 const NotificationBell = () => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const { socket } = useContext(SocketContext);
 
   const fetchNotifications = async () => {
     try {
@@ -29,8 +31,24 @@ const NotificationBell = () => {
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
+    
+    // Socket listener for real-time notifications
+    if (socket) {
+      const handleNewNotification = (notification) => {
+        setNotifications(prev => [notification, ...prev].slice(0, 5));
+        setUnreadCount(prev => prev + 1);
+      };
+      
+      socket.on('new_notification', handleNewNotification);
+      
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        socket.off('new_notification', handleNewNotification);
+      };
+    }
+
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [socket]);
 
   const handleMarkAsRead = async (id) => {
     try {

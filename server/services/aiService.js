@@ -18,11 +18,13 @@ class AIService {
   /**
    * Safe execution wrapper for AI calls that handles logging and standard errors.
    */
-  async _executeAIOperation(userId, action, prompt, systemPrompt, modelConfig) {
+  async _executeAIOperation(userId, action, prompt, systemPrompt, modelConfig, metadata = {}) {
     const startTime = Date.now();
     let logStatus = 'success';
     let errorMessage = null;
     let aiResponseText = null;
+    let promptTokens = 0;
+    let responseTokens = 0;
 
     try {
       if (this.groq.apiKey === 'MISSING_API_KEY') {
@@ -35,11 +37,14 @@ class AIService {
           { role: 'user', content: prompt }
         ],
         model: modelConfig?.model || this.defaultModel,
-        temperature: modelConfig?.temperature || 0.3, // Low temp for factual responses
+        temperature: modelConfig?.temperature || 0.3, 
         max_tokens: modelConfig?.max_tokens || 1024,
       });
 
       aiResponseText = response.choices[0]?.message?.content || '';
+      promptTokens = response.usage?.prompt_tokens || 0;
+      responseTokens = response.usage?.completion_tokens || 0;
+      
       return aiResponseText;
 
     } catch (error) {
@@ -51,7 +56,7 @@ class AIService {
           throw new Error('AI Service is currently rate limited. Please try again later.');
         }
         if (error.status >= 500) {
-          logStatus = 'timeout'; // Treating 500+ as upstream timeout/failure
+          logStatus = 'timeout'; 
           throw new Error('AI Service is currently unavailable. Please try again later.');
         }
       }
@@ -66,8 +71,9 @@ class AIService {
       AILog.create({
         user: userId,
         action,
-        prompt,
-        response: aiResponseText,
+        caseId: metadata.caseId || null,
+        promptTokens,
+        responseTokens,
         modelUsed: modelConfig?.model || this.defaultModel,
         processingTimeMs,
         status: logStatus,
@@ -87,13 +93,13 @@ class AIService {
   /**
    * Generates a summary for a given block of text.
    */
-  async generateSummary(userId, content) {
+  async generateSummary(userId, content, caseId = null) {
     if (!content) return '';
     
     const systemPrompt = "You are an assistant for law enforcement. Summarize the following case report text. Be concise, objective, and highlight key facts (suspects, dates, locations, crucial evidence). Do not invent information.";
     
     // We pass null for modelConfig to use defaults
-    return this._executeAIOperation(userId, 'summarize_report', content, systemPrompt);
+    return this._executeAIOperation(userId, 'summarize_report', content, systemPrompt, null, { caseId });
   }
 }
 

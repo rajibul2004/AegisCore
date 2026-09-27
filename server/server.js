@@ -58,10 +58,18 @@ app.get('/', (req, res) => {
   res.json({ message: 'Welcome to Crime Investigation System API' });
 });
 
+const http = require('http');
+const { initializeSocket } = require('./config/socket');
+
 const startServer = async () => {
   await connectDB();
 
-  app.listen(PORT, () => {
+  const server = http.createServer(app);
+  
+  // Initialize Socket.io
+  initializeSocket(server);
+
+  server.listen(PORT, () => {
     console.log(`\n=== Server is running on port ${PORT} ===`);
     console.log(`=== Environment: ${process.env.NODE_ENV || 'development'} ===`);
     console.log(`=== Health check: http://localhost:${PORT}/api/health ===\n`);

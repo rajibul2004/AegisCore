@@ -155,10 +155,50 @@ const deleteReport = async (req, res) => {
   }
 };
 
+const generateReportSummary = async (req, res) => {
+  try {
+    const report = await Report.findById(req.params.id);
+    
+    if (!report) {
+      return res.status(404).json({ success: false, message: 'Report not found' });
+    }
+
+    if (req.user.role === 'public') {
+      return res.status(403).json({ success: false, message: 'Not authorized to use AI summarization' });
+    }
+
+    // Limit input length to prevent excessive token usage
+    const contentToSummarize = report.content.substring(0, 15000); 
+
+    // Generate summary via the AI service
+    const summary = await aiService.generateSummary(req.user._id, contentToSummarize, report.caseId);
+
+    // Save the summary without overwriting the original content
+    report.aiSummary = summary;
+    report.isAiGenerated = true; // Indicates the summary is AI-generated
+    await report.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'AI summary generated successfully',
+      data: report,
+    });
+  } catch (error) {
+    if (error.name === 'CastError') {
+      return res.status(404).json({ success: false, message: 'Report not found' });
+    }
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Server error while generating AI summary' 
+    });
+  }
+};
+
 module.exports = {
   createReport,
   getReportsByCase,
   getReportById,
   updateReport,
-  deleteReport
+  deleteReport,
+  generateReportSummary
 };

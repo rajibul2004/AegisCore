@@ -12,12 +12,15 @@ const aiLogSchema = new mongoose.Schema(
       type: String,
       required: true, // e.g., 'test_prompt', 'summarize_report', 'analyze_suspect'
     },
-    prompt: {
-      type: String,
-      required: true,
+    caseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Case',
     },
-    response: {
-      type: String,
+    promptTokens: {
+      type: Number,
+    },
+    responseTokens: {
+      type: Number,
     },
     modelUsed: {
       type: String,

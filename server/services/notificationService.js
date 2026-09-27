@@ -28,8 +28,9 @@ class NotificationService {
         link: data.link || '',
       });
 
-      // TODO: In the next phase, trigger Socket.io event here for real-time delivery!
-      // io.to(data.recipient).emit('new_notification', notification);
+      // Require socket here to avoid circular dependency issues at boot
+      const { emitToUser } = require('../config/socket');
+      emitToUser(data.recipient, 'new_notification', notification);
 
       return notification;
     } catch (error) {

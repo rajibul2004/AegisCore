@@ -16,6 +16,7 @@ const Sidebar = ({ isOpen, onClose }) => {
       return [
         ...baseItems,
         { name: 'System Audit', icon: <Activity className="w-5 h-5" />, path: '/audit' },
+        { name: 'AI Audit Logs', icon: <Activity className="w-5 h-5 text-purple-500" />, path: '/admin/ai-logs' },
         { name: 'Manage Users', icon: <Users className="w-5 h-5" />, path: '/users' },
         { name: 'All Cases', icon: <Briefcase className="w-5 h-5" />, path: '/cases' },
         { name: 'Settings', icon: <Settings className="w-5 h-5" />, path: '/settings' },

@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import { reportService } from '../../api/reportService';
-import { FileText, Plus, Loader2, AlertCircle, Trash2, Edit, Save, X } from 'lucide-react';
+import { FileText, Plus, Loader2, AlertCircle, Trash2, Edit, Save, X, Sparkles, Wand2 } from 'lucide-react';
 
 const ReportManager = ({ caseId }) => {
   const { user } = useContext(AuthContext);
@@ -12,6 +12,7 @@ const ReportManager = ({ caseId }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [generatingAi, setGeneratingAi] = useState(null);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -35,6 +36,18 @@ const ReportManager = ({ caseId }) => {
     fetchReports();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId]);
+
+  const handleGenerateSummary = async (reportId) => {
+    try {
+      setGeneratingAi(reportId);
+      const res = await reportService.generateSummary(reportId);
+      setReports(reports.map(r => r._id === reportId ? res.data : r));
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to generate AI summary');
+    } finally {
+      setGeneratingAi(null);
+    }
+  };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -193,7 +206,21 @@ const ReportManager = ({ caseId }) => {
                       Filed by {report.author?.name} on {new Date(report.createdAt).toLocaleString()}
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center">
+                    {!report.aiSummary && (user.role === 'admin' || user.role === 'police') && (
+                      <button 
+                        onClick={() => handleGenerateSummary(report._id)} 
+                        disabled={generatingAi === report._id}
+                        className="text-xs flex items-center font-semibold bg-purple-50 text-purple-600 hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400 dark:hover:bg-purple-900/50 px-2 py-1 rounded transition disabled:opacity-50"
+                        title="Generate AI Summary"
+                      >
+                        {generatingAi === report._id ? (
+                          <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Generating...</>
+                        ) : (
+                          <><Wand2 className="w-3 h-3 mr-1" /> AI Summary</>
+                        )}
+                      </button>
+                    )}
                     {canWrite && (user._id === report.author?._id || user.role === 'admin') && (
                       <button onClick={() => startEdit(report)} className="text-gray-500 hover:text-indigo-600 transition" title="Edit Report">
                         <Edit className="w-4 h-4" />
@@ -211,11 +238,11 @@ const ReportManager = ({ caseId }) => {
                     <p className="whitespace-pre-wrap font-serif leading-relaxed">{report.content}</p>
                   </div>
                   {report.aiSummary && (
-                    <div className="mt-4 p-3 bg-indigo-50 dark:bg-indigo-900/20 border-l-2 border-indigo-500 rounded-r-lg">
-                      <p className="text-xs font-bold text-indigo-700 dark:text-indigo-400 mb-1 flex items-center">
-                        ✨ AI Summary
+                    <div className="mt-5 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border-l-4 border-purple-500 rounded-r-xl">
+                      <p className="text-xs font-bold text-purple-700 dark:text-purple-400 mb-2 flex items-center uppercase tracking-wider">
+                        <Sparkles className="w-4 h-4 mr-1.5" /> AI Generated Summary
                       </p>
-                      <p className="text-sm text-indigo-900 dark:text-indigo-200">{report.aiSummary}</p>
+                      <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed font-medium">{report.aiSummary}</p>
                     </div>
                   )}
                 </div>

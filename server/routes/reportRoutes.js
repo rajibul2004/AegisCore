@@ -4,7 +4,8 @@ const {
   getReportsByCase,
   getReportById,
   updateReport,
-  deleteReport
+  deleteReport,
+  generateReportSummary
 } = require('../controllers/reportController');
 const { protect } = require('../middlewares/authMiddleware');
 const { requireRole } = require('../middlewares/roleMiddleware');
@@ -29,5 +30,8 @@ router
   .get(getReportById)
   .patch(updateReport)
   .delete(deleteReport);
+
+// POST /api/reports/:id/summarize - Generate AI summary for a report
+router.post('/:id/summarize', generateReportSummary);
 
 module.exports = router;

@@ -16,6 +16,7 @@ import SuspectList from './pages/suspects/SuspectList';
 import CreateSuspect from './pages/suspects/CreateSuspect';
 import SuspectDetails from './pages/suspects/SuspectDetails';
 import NotificationsList from './pages/notifications/NotificationsList';
+import AILogs from './pages/admin/AILogs';
 import ProtectedRoute from './routes/ProtectedRoute';
 import ThemeToggle from './components/common/ThemeToggle';
 
@@ -26,11 +27,14 @@ const PublicRoute = ({ children }) => {
   return children;
 };
 
+import { SocketProvider } from './context/SocketContext';
+
 function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Router>
+        <SocketProvider>
+          <Router>
           <ThemeToggle />
           <Routes>
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
@@ -55,8 +59,16 @@ function App() {
 
             {/* Notification Routes */}
             <Route path="/notifications" element={<ProtectedRoute><NotificationsList /></ProtectedRoute>} />
+
+            {/* Admin Routes */}
+            <Route path="/admin/ai-logs" element={
+              <ProtectedRoute>
+                <AILogs />
+              </ProtectedRoute>
+            } />
           </Routes>
         </Router>
+        </SocketProvider>
       </AuthProvider>
     </ThemeProvider>
   );

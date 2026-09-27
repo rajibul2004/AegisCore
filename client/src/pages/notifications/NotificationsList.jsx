@@ -1,17 +1,33 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { notificationService } from '../../api/notificationService';
 import { Bell, Check, Circle, ExternalLink, Calendar, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { SocketContext } from '../../context/SocketContext';
 
 const NotificationsList = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all'); // all, unread
+  const { socket } = useContext(SocketContext);
 
   useEffect(() => {
     fetchNotifications();
-  }, [filter]);
+    
+    if (socket) {
+      const handleNewNotification = (notification) => {
+        if (filter === 'all' || (filter === 'unread' && !notification.isRead)) {
+          setNotifications(prev => [notification, ...prev]);
+        }
+      };
+      
+      socket.on('new_notification', handleNewNotification);
+      
+      return () => {
+        socket.off('new_notification', handleNewNotification);
+      };
+    }
+  }, [filter, socket]);
 
   const fetchNotifications = async () => {
     setLoading(true);
