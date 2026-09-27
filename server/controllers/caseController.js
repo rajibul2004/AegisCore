@@ -1,3 +1,4 @@
+const auditService = require('../services/auditService');
 const Case = require('../models/Case');
 const FIR = require('../models/FIR');
 const notificationService = require('../services/notificationService');
@@ -43,6 +44,8 @@ const createCase = async (req, res) => {
         link: `/cases/${newCase._id}`
       });
     }
+
+    await auditService.log(req, 'case_created', 'Case', newCase._id, { caseNumber: newCase.caseNumber, firId: firId });
 
     res.status(201).json({
       success: true,
@@ -241,6 +244,8 @@ const updateCase = async (req, res) => {
         link: `/cases/${updatedCase._id}`
       });
     }
+
+    await auditService.log(req, 'case_updated', 'Case', updatedCase._id, updateFields);
 
     res.status(200).json({
       success: true,

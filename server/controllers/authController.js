@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
+const auditService = require('../services/auditService');
 
 const register = async (req, res) => {
   try {
@@ -115,6 +116,10 @@ const login = async (req, res) => {
         isActive: user.isActive,
       },
     });
+
+    // Mocking req.user for auditService
+    req.user = user;
+    await auditService.log(req, 'login', 'User', user._id);
   } catch (error) {
     console.error('LOGIN ERROR DETAILS:', error);
     res.status(500).json({
@@ -133,6 +138,10 @@ const getMe = async (req, res) => {
 };
 
 const logout = async (req, res) => {
+  if (req.user) {
+    await auditService.log(req, 'logout', 'User', req.user._id);
+  }
+
   res.cookie('token', '', {
     httpOnly: true,
     expires: new Date(0),

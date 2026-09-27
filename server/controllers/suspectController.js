@@ -1,3 +1,4 @@
+const auditService = require('../services/auditService');
 const Suspect = require('../models/Suspect');
 const Case = require('../models/Case');
 
@@ -32,6 +33,7 @@ const createSuspect = async (req, res) => {
       notes
     });
 
+    await auditService.log(req, 'suspect_created', 'Suspect', suspect._id, { caseId });
     res.status(201).json({
       success: true,
       message: 'Suspect profile created successfully',
@@ -148,6 +150,8 @@ const updateSuspect = async (req, res) => {
     if (!suspect) {
       return res.status(404).json({ success: false, message: 'Suspect not found' });
     }
+
+    await auditService.log(req, 'suspect_updated', 'Suspect', suspect._id);
 
     res.status(200).json({
       success: true,

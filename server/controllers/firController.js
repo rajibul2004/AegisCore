@@ -1,3 +1,4 @@
+const auditService = require('../services/auditService');
 const FIR = require('../models/FIR');
 
 const createFIR = async (req, res) => {
@@ -12,6 +13,8 @@ const createFIR = async (req, res) => {
       location,
       isAnonymous: isAnonymous || false,
     });
+
+    await auditService.log(req, 'fir_created', 'FIR', fir._id, { firNumber: fir.firNumber });
 
     res.status(201).json({
       success: true,
@@ -176,6 +179,8 @@ const updateFIRStatus = async (req, res) => {
     if (!fir) {
       return res.status(404).json({ success: false, message: 'FIR not found' });
     }
+
+    await auditService.log(req, 'fir_status_updated', 'FIR', fir._id, updateFields);
 
     res.status(200).json({
       success: true,

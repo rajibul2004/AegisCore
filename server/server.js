@@ -14,6 +14,7 @@ const reportRoutes = require('./routes/reportRoutes');
 const statsRoutes = require('./routes/statsRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const aiRoutes = require('./routes/aiRoutes');
+const auditRoutes = require('./routes/auditRoutes');
 const testRoutes = require('./routes/testRoutes');
 
 const app = express();
@@ -52,6 +53,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/audit', auditRoutes);
 app.use('/api/test', testRoutes);
 
 app.get('/', (req, res) => {

@@ -1,3 +1,4 @@
+const auditService = require('../services/auditService');
 const Evidence = require('../models/Evidence');
 const Case = require('../models/Case');
 const storageService = require('../services/storageService');
@@ -56,6 +57,7 @@ const uploadEvidence = async (req, res) => {
       });
     }
 
+    await auditService.log(req, 'evidence_uploaded', 'Evidence', evidence._id, { caseId });
     res.status(201).json({
       success: true,
       message: 'Evidence uploaded successfully',

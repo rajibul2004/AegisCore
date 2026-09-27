@@ -1,3 +1,4 @@
+const auditService = require('./auditService');
 const Groq = require('groq-sdk');
 const AILog = require('../models/AILog');
 
@@ -79,6 +80,12 @@ class AIService {
         status: logStatus,
         errorMessage
       }).catch(err => console.error('Failed to save AI audit log:', err));
+
+      // Also register in the master system audit log
+      auditService.logInternal(userId, 'ai_feature_used', 'AI', null, { 
+        aiAction: action, 
+        caseId: metadata.caseId 
+      });
     }
   }
 

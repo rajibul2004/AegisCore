@@ -18,6 +18,7 @@ import SuspectDetails from './pages/suspects/SuspectDetails';
 import NotificationsList from './pages/notifications/NotificationsList';
 import MapDashboard from './pages/map/MapDashboard';
 import AILogs from './pages/admin/AILogs';
+import SystemAudit from './pages/admin/SystemAudit';
 import ProtectedRoute from './routes/ProtectedRoute';
 import ThemeToggle from './components/common/ThemeToggle';
 
@@ -68,6 +69,11 @@ function App() {
             <Route path="/admin/ai-logs" element={
               <ProtectedRoute>
                 <AILogs />
+              </ProtectedRoute>
+            } />
+            <Route path="/audit" element={
+              <ProtectedRoute>
+                <SystemAudit />
               </ProtectedRoute>
             } />
           </Routes>

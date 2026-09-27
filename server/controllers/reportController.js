@@ -1,3 +1,4 @@
+const auditService = require('../services/auditService');
 const Report = require('../models/Report');
 const Case = require('../models/Case');
 const aiService = require('../services/aiService');
@@ -37,6 +38,7 @@ const createReport = async (req, res) => {
       });
     }
 
+    await auditService.log(req, 'report_created', 'Report', report._id, { caseId });
     res.status(201).json({
       success: true,
       message: 'Report created successfully',
