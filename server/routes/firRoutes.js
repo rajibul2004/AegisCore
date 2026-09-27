@@ -2,6 +2,7 @@ const express = require('express');
 const {
   createFIR,
   getFIRs,
+  getFIRLocations,
   getFIRById,
   updateFIRStatus,
   deleteFIR,
@@ -21,6 +22,9 @@ router
   .route('/')
   .get(getFIRs)
   .post(validateFIR, createFIR);
+
+// GET /api/firs/locations - Get map coordinates
+router.get('/locations', getFIRLocations);
 
 // GET /api/firs/:id - Get a specific FIR (public only sees their own)
 // PATCH /api/firs/:id - Update FIR status (Police and Admin only)

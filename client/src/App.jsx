@@ -16,6 +16,7 @@ import SuspectList from './pages/suspects/SuspectList';
 import CreateSuspect from './pages/suspects/CreateSuspect';
 import SuspectDetails from './pages/suspects/SuspectDetails';
 import NotificationsList from './pages/notifications/NotificationsList';
+import MapDashboard from './pages/map/MapDashboard';
 import AILogs from './pages/admin/AILogs';
 import ProtectedRoute from './routes/ProtectedRoute';
 import ThemeToggle from './components/common/ThemeToggle';
@@ -59,6 +60,9 @@ function App() {
 
             {/* Notification Routes */}
             <Route path="/notifications" element={<ProtectedRoute><NotificationsList /></ProtectedRoute>} />
+
+            {/* Map Routes */}
+            <Route path="/map" element={<ProtectedRoute><MapDashboard /></ProtectedRoute>} />
 
             {/* Admin Routes */}
             <Route path="/admin/ai-logs" element={

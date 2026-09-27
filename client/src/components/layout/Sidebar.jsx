@@ -1,6 +1,6 @@
 import { useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
-import { LayoutDashboard, Briefcase, FileText, Users, ShieldAlert, FilePlus, Search, Settings, Activity } from 'lucide-react';
+import { LayoutDashboard, Briefcase, FileText, Users, ShieldAlert, FilePlus, Search, Settings, Activity, Map as MapIcon } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 const Sidebar = ({ isOpen, onClose }) => {
@@ -9,7 +9,8 @@ const Sidebar = ({ isOpen, onClose }) => {
 
   const getNavItems = () => {
     const baseItems = [
-      { name: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, path: '/' }
+      { name: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, path: '/' },
+      { name: 'Crime Map', icon: <MapIcon className="w-5 h-5" />, path: '/map' }
     ];
 
     if (user?.role === 'admin') {

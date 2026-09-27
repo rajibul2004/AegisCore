@@ -91,6 +91,38 @@ const getFIRs = async (req, res) => {
   }
 };
 
+const getFIRLocations = async (req, res) => {
+  try {
+    let query = {};
+    
+    // Public users only see their own FIRs on the map
+    if (req.user.role === 'public') {
+      query.complainant = req.user._id;
+    }
+
+    // Only return FIRs that actually have coordinates
+    query['location.coordinates.lat'] = { $exists: true, $ne: null };
+    query['location.coordinates.lng'] = { $exists: true, $ne: null };
+
+    // Select only the minimal fields needed for the map to prevent exposing PII
+    // Do not include complainant details or full description unless it's their own
+    const firs = await FIR.find(query)
+      .select('firNumber title location status priority incidentDate isAnonymous')
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      count: firs.length,
+      data: firs
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching FIR locations',
+    });
+  }
+};
+
 const getFIRById = async (req, res) => {
   try {
     const fir = await FIR.findById(req.params.id)
@@ -183,6 +215,7 @@ const deleteFIR = async (req, res) => {
 module.exports = {
   createFIR,
   getFIRs,
+  getFIRLocations,
   getFIRById,
   updateFIRStatus,
   deleteFIR,

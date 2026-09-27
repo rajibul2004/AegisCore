@@ -27,7 +27,12 @@ export const firService = {
   },
 
   updateFIRStatus: async (id, updateData) => {
-    const response = await api.patch(`/firs/${id}/status`, updateData);
+    const response = await api.patch(`/firs/${id}`, updateData); // Fixed endpoint, standard REST is /firs/:id
+    return response.data;
+  },
+
+  getFIRLocations: async () => {
+    const response = await api.get('/firs/locations');
     return response.data;
   }
 };
