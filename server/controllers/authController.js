@@ -4,6 +4,9 @@ const generateToken = require('../utils/generateToken');
 const register = async (req, res) => {
   try {
     const { name, email, password, role, phone, badgeNumber, department } = req.body;
+    
+    console.log('REGISTER PAYLOAD:', req.body);
+    console.log('ROLE TYPE:', typeof role, 'VALUE:', JSON.stringify(role));
 
     const existingUser = await User.findOne({ email: email.toLowerCase() });
 
