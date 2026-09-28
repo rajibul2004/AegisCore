@@ -1,11 +1,8 @@
 import api from './axios';
 
 export const suspectService = {
-  getSuspects: async (page = 1, limit = 10, search = '', status = '') => {
-    let url = `/suspects?page=${page}&limit=${limit}`;
-    if (search) url += `&search=${search}`;
-    if (status) url += `&status=${status}`;
-    const response = await api.get(url);
+  getSuspects: async (page = 1, limit = 10, filters = {}) => {
+    const response = await api.get('/suspects', { params: { page, limit, ...filters } });
     return response.data;
   },
 

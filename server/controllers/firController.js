@@ -22,10 +22,12 @@ const createFIR = async (req, res) => {
       data: fir,
     });
   } catch (error) {
+    console.error("CREATE FIR ERROR:", error);
     res.status(500).json({
       success: false,
       message: 'Server error while creating FIR',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      error: error.message,
+      stack: error.stack
     });
   }
 };
@@ -50,7 +52,7 @@ const getFIRs = async (req, res) => {
       query.firNumber = { $regex: req.query.firNumber, $options: 'i' };
     }
     if (req.query.location) {
-      query.location = { $regex: req.query.location, $options: 'i' };
+      query['location.address'] = { $regex: req.query.location, $options: 'i' };
     }
     if (req.query.search) {
       query.$or = [

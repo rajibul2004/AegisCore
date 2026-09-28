@@ -9,5 +9,10 @@ export const aiService = {
   testPrompt: async (prompt) => {
     const response = await api.post('/ai/test', { prompt });
     return response.data;
+  },
+
+  analyzeCase: async (caseData) => {
+    const response = await api.post('/ai/analyze-case', { caseData });
+    return response.data;
   }
 };

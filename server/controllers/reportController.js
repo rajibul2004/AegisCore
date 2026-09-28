@@ -27,7 +27,7 @@ const createReport = async (req, res) => {
     });
 
     // Notify assigned officer if someone else created it
-    if (investigationCase.assignedOfficer.toString() !== req.user._id.toString()) {
+    if (investigationCase.assignedOfficer && investigationCase.assignedOfficer.toString() !== req.user._id.toString()) {
       await notificationService.createNotification({
         recipient: investigationCase.assignedOfficer,
         sender: req.user._id,

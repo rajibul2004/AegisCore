@@ -22,12 +22,19 @@ export const firService = {
   },
 
   createFIR: async (firData) => {
+    console.log('Creating FIR with data:', firData); // Debugging log
     const response = await api.post('/firs', firData);
+    console.log('FIR created:', response.data); // Debugging log
     return response.data;
   },
 
-  updateFIRStatus: async (id, updateData) => {
-    const response = await api.patch(`/firs/${id}`, updateData); // Fixed endpoint, standard REST is /firs/:id
+  updateFIR: async (id, updateData) => {
+    const response = await api.patch(`/firs/${id}`, updateData);
+    return response.data;
+  },
+
+  deleteFIR: async (id) => {
+    const response = await api.delete(`/firs/${id}`);
     return response.data;
   },
 

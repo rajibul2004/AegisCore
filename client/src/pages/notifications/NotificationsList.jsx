@@ -3,6 +3,7 @@ import { notificationService } from '../../api/notificationService';
 import { Bell, Check, Circle, ExternalLink, Calendar, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { SocketContext } from '../../context/SocketContext';
+import DashboardLayout from '../../components/layout/DashboardLayout';
 
 const NotificationsList = () => {
   const [notifications, setNotifications] = useState([]);
@@ -82,6 +83,7 @@ const NotificationsList = () => {
   }
 
   return (
+    <DashboardLayout>
     <div className="space-y-6 max-w-4xl mx-auto animate-in fade-in">
       
       {/* Header */}
@@ -186,6 +188,7 @@ const NotificationsList = () => {
         )}
       </div>
     </div>
+    </DashboardLayout>
   );
 };
 

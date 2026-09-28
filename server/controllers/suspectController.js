@@ -33,7 +33,7 @@ const createSuspect = async (req, res) => {
       notes
     });
 
-    await auditService.log(req, 'suspect_created', 'Suspect', suspect._id, { caseId });
+    await auditService.log(req, 'suspect_created', 'Suspect', suspect._id, { cases: suspect.cases });
     res.status(201).json({
       success: true,
       message: 'Suspect profile created successfully',
@@ -181,7 +181,7 @@ const linkSuspectToCase = async (req, res) => {
     }
 
     // Check if already linked
-    if (suspect.cases.includes(caseId)) {
+    if (suspect.cases.some(c => c.toString() === caseId.toString())) {
       return res.status(400).json({ success: false, message: 'Suspect is already linked to this case' });
     }
 
@@ -198,10 +198,25 @@ const linkSuspectToCase = async (req, res) => {
   }
 };
 
+const deleteSuspect = async (req, res) => {
+  try {
+    const suspect = await Suspect.findById(req.params.id);
+    if (!suspect) {
+      return res.status(404).json({ success: false, message: 'Suspect not found' });
+    }
+    await suspect.deleteOne();
+    await auditService.log(req, 'suspect_deleted', 'Suspect', req.params.id);
+    res.status(200).json({ success: true, message: 'Suspect deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error while deleting suspect' });
+  }
+};
+
 module.exports = {
   createSuspect,
   getSuspects,
   getSuspectById,
   updateSuspect,
-  linkSuspectToCase
+  linkSuspectToCase,
+  deleteSuspect
 };

@@ -108,6 +108,19 @@ class AIService {
     // We pass null for modelConfig to use defaults
     return this._executeAIOperation(userId, 'summarize_report', content, systemPrompt, null, { caseId });
   }
+
+  /**
+   * Analyze case data
+   */
+  async analyzeCase(userId, caseData) {
+    const systemPrompt = `You are a Senior Detective AI. Analyze the provided case details (JSON). Return a tactical breakdown containing:
+1. Primary objective
+2. Missing evidence or logical gaps
+3. Recommended next steps for the investigating officer.
+Keep it strictly under 300 words. Format as clean text with bullet points.`;
+    
+    return this._executeAIOperation(userId, 'analyze_case', JSON.stringify(caseData), systemPrompt, null, { caseId: caseData._id });
+  }
 }
 
 module.exports = new AIService();

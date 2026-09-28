@@ -62,7 +62,22 @@ const getAILogs = async (req, res) => {
   }
 };
 
+const analyzeCase = async (req, res) => {
+  try {
+    const { caseData } = req.body;
+    if (!caseData) {
+      return res.status(400).json({ success: false, message: 'Case data is required' });
+    }
+
+    const response = await aiService.analyzeCase(req.user._id, caseData);
+    res.status(200).json({ success: true, data: { analysis: response } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message || 'AI Analysis failed' });
+  }
+};
+
 module.exports = {
   testAI,
-  getAILogs
+  getAILogs,
+  analyzeCase
 };

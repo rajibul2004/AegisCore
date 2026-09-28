@@ -12,14 +12,8 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     // Only connect if the user is authenticated
     if (user && !socket) {
-      // Get token from localStorage/cookies to authenticate the socket
-      const token = localStorage.getItem('token') || ''; 
-      // If we use httpOnly cookies, socket.io sends them automatically if credentials: true
-
-      const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+      const newSocket = io('http://localhost:5000', {
         withCredentials: true,
-        // If we strictly rely on cookies, this is fine. If not, pass auth.
-        // auth: { token }
       });
 
       setSocket(newSocket);

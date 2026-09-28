@@ -14,20 +14,11 @@ const router = express.Router();
 
 router.use(protect);
 
-// GET /api/cases - Get all cases (filtered by role)
-// POST /api/cases - Create a new Case (Police/Admin only)
-router
-  .route('/')
-  .get(getCases)
-  .post(requireRole('police', 'admin'), validateCase, createCase);
+router.get('/', getCases);
+router.post('/', requireRole('police', 'admin'), validateCase, createCase);
 
-// GET /api/cases/:id - Get a specific case
-// PATCH /api/cases/:id - Update case (Police/Admin only)
-// DELETE /api/cases/:id - Delete a case (Admin only)
-router
-  .route('/:id')
-  .get(getCaseById)
-  .patch(requireRole('police', 'admin'), updateCase)
-  .delete(requireRole('admin'), deleteCase);
+router.get('/:id', getCaseById);
+router.patch('/:id', requireRole('police', 'admin'), updateCase);
+router.delete('/:id', requireRole('admin'), deleteCase);
 
 module.exports = router;

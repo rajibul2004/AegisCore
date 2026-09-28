@@ -13,26 +13,15 @@ const { validateFIR } = require('../middlewares/validateRequest');
 
 const router = express.Router();
 
-// All FIR routes require authentication
 router.use(protect);
 
-// GET /api/firs - Get all FIRs (filtered by role)
-// POST /api/firs - Create a new FIR (any authenticated user)
-router
-  .route('/')
-  .get(getFIRs)
-  .post(validateFIR, createFIR);
+router.get('/', getFIRs);
+router.post('/', validateFIR, createFIR);
 
-// GET /api/firs/locations - Get map coordinates
 router.get('/locations', getFIRLocations);
 
-// GET /api/firs/:id - Get a specific FIR (public only sees their own)
-// PATCH /api/firs/:id - Update FIR status (Police and Admin only)
-// DELETE /api/firs/:id - Delete an FIR (Admin only)
-router
-  .route('/:id')
-  .get(getFIRById)
-  .patch(requireRole('police', 'admin'), updateFIRStatus)
-  .delete(requireRole('admin'), deleteFIR);
+router.get('/:id', getFIRById);
+router.patch('/:id', requireRole('police', 'admin'), updateFIRStatus);
+router.delete('/:id', requireRole('admin'), deleteFIR);
 
 module.exports = router;

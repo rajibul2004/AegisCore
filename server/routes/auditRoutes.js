@@ -5,7 +5,6 @@ const { requireRole } = require('../middlewares/roleMiddleware');
 
 const router = express.Router();
 
-// Only Admins can view audit logs
 router.use(protect);
 router.use(requireRole('admin'));
 

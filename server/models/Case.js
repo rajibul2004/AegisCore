@@ -50,6 +50,8 @@ const caseSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
   }
 );
 
@@ -67,6 +69,10 @@ caseSchema.pre('save', async function () {
     this.assignedDate = new Date();
   }
 });
+
+caseSchema.virtual('evidence', { ref: 'Evidence', localField: '_id', foreignField: 'caseId' });
+caseSchema.virtual('suspects', { ref: 'Suspect', localField: '_id', foreignField: 'cases' });
+caseSchema.virtual('reports', { ref: 'Report', localField: '_id', foreignField: 'caseId' });
 
 const Case = mongoose.model('Case', caseSchema);
 

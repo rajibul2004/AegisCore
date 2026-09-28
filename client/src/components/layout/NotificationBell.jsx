@@ -76,11 +76,11 @@ const NotificationBell = () => {
     <div className="relative" ref={dropdownRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 focus:outline-none transition-colors rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+        className="relative p-2.5 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 focus:outline-none transition-all duration-200 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/20 group"
       >
-        <Bell className="h-5 w-5" />
+        <Bell className="h-5 w-5 group-hover:scale-110 transition-transform" strokeWidth={2} />
         {unreadCount > 0 && (
-          <span className="absolute top-1.5 right-1.5 inline-flex items-center justify-center h-4 w-4 text-[10px] font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-600 rounded-full border-2 border-white dark:border-gray-800">
+          <span className="absolute top-1.5 right-1.5 inline-flex items-center justify-center h-4 w-4 text-[10px] font-black leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.6)] border-2 border-white dark:border-[#0A0A0B]">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}

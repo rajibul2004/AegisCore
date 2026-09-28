@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { aiService } from '../../api/aiService';
 import { Activity, Server, AlertTriangle, ShieldCheck, Clock, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import DashboardLayout from '../../components/layout/DashboardLayout';
 
 const AILogs = () => {
   const [logs, setLogs] = useState([]);
@@ -35,6 +36,7 @@ const AILogs = () => {
   };
 
   return (
+    <DashboardLayout>
     <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in">
       <div className="flex items-center justify-between">
         <div>
@@ -134,6 +136,7 @@ const AILogs = () => {
         </div>
       </div>
     </div>
+    </DashboardLayout>
   );
 };
 

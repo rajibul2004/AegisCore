@@ -32,6 +32,8 @@ const createCase = async (req, res) => {
     // Update FIR status automatically
     fir.status = 'registered';
     await fir.save();
+    
+    await FIR.findByIdAndUpdate(firId, { caseId: newCase._id });
 
     // Trigger Notification for the assigned officer
     if (assignedTo.toString() !== req.user._id.toString()) {
@@ -150,11 +152,11 @@ const getCases = async (req, res) => {
 const getCaseById = async (req, res) => {
   try {
     const investigationCase = await Case.findById(req.params.id)
-      .populate({
-        path: 'fir',
-        populate: { path: 'complainant', select: 'name email phone' }
-      })
-      .populate('assignedOfficer', 'name badgeNumber department email');
+      .populate('fir', 'firNumber complainant incidentDate location status')
+      .populate('assignedOfficer', 'name email badgeNumber')
+      .populate('evidence')
+      .populate('suspects', 'name aliases status')
+      .populate('reports', 'title reportType createdAt');
 
     if (!investigationCase) {
       return res.status(404).json({ success: false, message: 'Case not found' });
@@ -234,7 +236,7 @@ const updateCase = async (req, res) => {
     }
 
     // Notify newly assigned officer
-    if (assignedOfficer && existingCase.assignedOfficer.toString() !== assignedOfficer.toString()) {
+    if (assignedOfficer && (!existingCase.assignedOfficer || existingCase.assignedOfficer.toString() !== assignedOfficer.toString())) {
       await notificationService.createNotification({
         recipient: assignedOfficer,
         sender: req.user._id,

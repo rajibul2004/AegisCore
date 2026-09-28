@@ -34,7 +34,7 @@ const uploadEvidence = async (req, res) => {
     });
 
     // Notify the assigned officer if someone else uploaded it
-    if (investigationCase.assignedOfficer.toString() !== req.user._id.toString()) {
+    if (investigationCase.assignedOfficer && investigationCase.assignedOfficer.toString() !== req.user._id.toString()) {
       await notificationService.createNotification({
         recipient: investigationCase.assignedOfficer,
         sender: req.user._id,
@@ -113,8 +113,45 @@ const deleteEvidence = async (req, res) => {
   }
 };
 
+const getAllEvidence = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 20;
+    const startIndex = (page - 1) * limit;
+    
+    let query = {};
+    if (req.query.search) {
+      query.$or = [
+        { title: { $regex: req.query.search, $options: 'i' } },
+        { description: { $regex: req.query.search, $options: 'i' } }
+      ];
+    }
+
+    const total = await Evidence.countDocuments(query);
+    const evidence = await Evidence.find(query)
+      .populate('uploadedBy', 'name badgeNumber')
+      .populate('caseId', 'caseNumber title')
+      .sort({ createdAt: -1 })
+      .skip(startIndex)
+      .limit(limit);
+
+    res.status(200).json({
+      success: true,
+      pagination: {
+        total,
+        page,
+        pages: Math.ceil(total / limit),
+      },
+      data: evidence,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error while fetching global evidence' });
+  }
+};
+
 module.exports = {
   uploadEvidence,
   getEvidenceByCase,
   deleteEvidence,
+  getAllEvidence
 };

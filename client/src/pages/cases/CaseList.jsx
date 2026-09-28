@@ -1,11 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { caseService } from '../../api/caseService';
+import { userService } from '../../api/userService';
+import { aiService } from '../../api/aiService';
+import { AuthContext } from '../../context/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Briefcase, Filter, Search, ChevronLeft, ChevronRight, AlertCircle, Plus, Calendar, Hash } from 'lucide-react';
+import { 
+  Briefcase, Filter, Search, ChevronLeft, ChevronRight, AlertCircle, 
+  Calendar, Hash, Zap, Loader2, X, BrainCircuit, Target, Shield, User, FileText
+} from 'lucide-react';
 
 const CaseList = () => {
+  const { user } = useContext(AuthContext);
+  
   const [cases, setCases] = useState([]);
+  const [policeOfficers, setPoliceOfficers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
@@ -13,20 +22,22 @@ const CaseList = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
-  // Advanced Filters State
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
-    search: '',
-    caseNumber: '',
-    firNumber: '',
-    status: '',
-    priority: '',
-    startDate: '',
-    endDate: ''
+    search: '', caseNumber: '', firNumber: '', status: '', priority: '', startDate: '', endDate: ''
   });
   
-  // Debounce global search
   const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // AI Modal State
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [analyzingCaseId, setAnalyzingCaseId] = useState(null);
+
+  // Quick Action State
+  const [updatingCaseId, setUpdatingCaseId] = useState(null);
+
+  const canEdit = user?.role === 'admin' || user?.role === 'police';
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -36,26 +47,29 @@ const CaseList = () => {
     return () => clearTimeout(timer);
   }, [filters.search]);
 
-  const fetchCases = async () => {
+  const fetchCasesAndOfficers = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await caseService.getCases(page, 10, {
-        ...filters,
-        search: debouncedSearch
-      });
-      setCases(data.data);
-      setTotalPages(data.pagination.pages || 1);
-      setTotalCount(data.pagination.total || 0);
+      const [caseData, usersRes] = await Promise.all([
+        caseService.getCases(page, 10, { ...filters, search: debouncedSearch }),
+        canEdit ? userService.getUsers() : Promise.resolve({ data: [] })
+      ]);
+      setCases(caseData.data);
+      setTotalPages(caseData.pagination.pages || 1);
+      setTotalCount(caseData.pagination.total || 0);
+      
+      const officers = (usersRes.data || []).filter(u => u.role === 'police' || u.role === 'admin');
+      setPoliceOfficers(officers);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load cases. Please try again.');
+      setError(err.response?.data?.message || 'Failed to load cases.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCases();
+    fetchCasesAndOfficers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, debouncedSearch, filters.status, filters.priority, filters.startDate, filters.endDate]);
 
@@ -67,7 +81,7 @@ const CaseList = () => {
   const applyFilters = (e) => {
     e.preventDefault();
     setPage(1);
-    fetchCases();
+    fetchCasesAndOfficers();
   };
 
   const clearFilters = () => {
@@ -77,229 +91,324 @@ const CaseList = () => {
     setPage(1);
   };
 
-  const getStatusColor = (status) => {
-    switch(status) {
-      case 'registered': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
-      case 'under_investigation': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400';
-      case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
-      case 'solved': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-      case 'closed': return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
+  const quickUpdateCase = async (caseId, updateData) => {
+    try {
+      setUpdatingCaseId(caseId);
+      await caseService.updateCase(caseId, updateData);
+      setCases(cases.map(c => c._id === caseId ? { ...c, ...updateData } : c));
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to update case');
+    } finally {
+      setUpdatingCaseId(null);
     }
   };
 
-  const getPriorityBadge = (priorityValue) => {
-    switch(priorityValue) {
-      case 'low': return 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50';
-      case 'medium': return 'border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30';
-      case 'high': return 'border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/30';
-      case 'critical': return 'border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/30';
-      default: return 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400';
+  const runInlineAiAnalysis = async (caseData) => {
+    try {
+      setAnalyzingCaseId(caseData._id);
+      setShowAiModal(true);
+      setAiAnalysis(null);
+      const res = await aiService.analyzeCase(caseData);
+      setAiAnalysis(res.data.analysis);
+    } catch (err) {
+      setAiAnalysis('ERROR: ' + (err.response?.data?.message || 'AI Analysis Failed'));
+    } finally {
+      setAnalyzingCaseId(null);
     }
+  };
+
+  const getStatusConfig = (s) => {
+    const configs = {
+      pending: { color: 'text-amber-500', bg: 'bg-amber-500/10' },
+      registered: { color: 'text-blue-500', bg: 'bg-blue-500/10' },
+      under_investigation: { color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
+      solved: { color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+      closed: { color: 'text-gray-500', bg: 'bg-gray-500/10' }
+    };
+    return configs[s] || configs.pending;
+  };
+
+  const getPriorityConfig = (p) => {
+    const configs = {
+      low: { color: 'text-slate-400', border: 'border-slate-500/20' },
+      medium: { color: 'text-blue-400', border: 'border-blue-500/20' },
+      high: { color: 'text-orange-500', border: 'border-orange-500/20' },
+      critical: { color: 'text-red-500', border: 'border-red-500/20' }
+    };
+    return configs[p] || configs.low;
   };
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center">
-            <Briefcase className="w-6 h-6 mr-2 text-indigo-500" />
-            Case Management
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">
-            {totalCount > 0 ? `Showing ${totalCount} active cases` : 'Track and manage ongoing investigations.'}
-          </p>
-        </div>
-      </div>
-
-      {/* Advanced Search Bar */}
-      <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm mb-6">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input 
-              type="text" 
-              name="search"
-              placeholder="Search case title or description..." 
-              value={filters.search}
-              onChange={handleFilterChange}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-            />
-          </div>
-          <button 
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg border font-medium transition ${
-              showFilters || Object.values(filters).some(v => v !== '' && v !== filters.search) 
-                ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-400' 
-                : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300'
-            }`}
-          >
-            <Filter className="w-5 h-5" />
-            Filters
-          </button>
-        </div>
-
-        {/* Filter Accordion */}
-        {showFilters && (
-          <form onSubmit={applyFilters} className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-2">
+      <div className="max-w-7xl mx-auto space-y-8 pb-20 animate-in fade-in duration-500">
+        
+        <div className="relative overflow-hidden bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-900 rounded-[2.5rem] p-8 sm:p-12 shadow-2xl border border-indigo-500/20">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
+          
+          <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div>
-              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1 flex items-center"><Hash className="w-3 h-3 mr-1"/> Case Number</label>
-              <input 
-                type="text" name="caseNumber" value={filters.caseNumber} onChange={handleFilterChange} placeholder="e.g. CASE-2026..."
-                className="w-full px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-indigo-500 outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1 flex items-center"><Hash className="w-3 h-3 mr-1"/> Associated FIR #</label>
-              <input 
-                type="text" name="firNumber" value={filters.firNumber} onChange={handleFilterChange} placeholder="e.g. FIR-2026..."
-                className="w-full px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-indigo-500 outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Status</label>
-              <select 
-                name="status" value={filters.status} onChange={handleFilterChange}
-                className="w-full px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-indigo-500 outline-none"
-              >
-                <option value="">All Statuses</option>
-                <option value="registered">Registered</option>
-                <option value="under_investigation">Under Investigation</option>
-                <option value="pending">Pending Court</option>
-                <option value="solved">Solved</option>
-                <option value="closed">Closed</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Priority</label>
-              <select 
-                name="priority" value={filters.priority} onChange={handleFilterChange}
-                className="w-full px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-indigo-500 outline-none"
-              >
-                <option value="">All Priorities</option>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
-            </div>
-            <div className="flex gap-2 md:col-span-2">
-              <div className="flex-1">
-                <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1 flex items-center"><Calendar className="w-3 h-3 mr-1"/> Start Date</label>
-                <input 
-                  type="date" name="startDate" value={filters.startDate} onChange={handleFilterChange}
-                  className="w-full px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white outline-none"
-                />
+              <div className="flex items-center gap-2 mb-2">
+                <span className="flex h-3 w-3 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                </span>
+                <span className="text-emerald-400 font-bold tracking-widest uppercase text-xs">Active Registry</span>
               </div>
-              <div className="flex-1">
-                <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">End Date</label>
-                <input 
-                  type="date" name="endDate" value={filters.endDate} onChange={handleFilterChange}
-                  className="w-full px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white outline-none"
-                />
-              </div>
+              <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight mb-2">Case Directory</h1>
+              <p className="text-indigo-200 text-lg max-w-xl font-medium">Browse, manage, and analyze active investigations across the network.</p>
             </div>
             
-            <div className="md:col-span-2 lg:col-span-2 flex justify-end gap-2 mt-auto pb-1">
-              <button type="button" onClick={clearFilters} className="px-4 py-1.5 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition">Clear</button>
-              <button type="submit" className="px-4 py-1.5 text-sm font-semibold bg-indigo-600 text-white rounded hover:bg-indigo-700 transition">Apply Search</button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button onClick={() => setShowFilters(!showFilters)} className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-2xl font-bold backdrop-blur-md transition-all flex items-center border border-white/10">
+                <Filter className="w-5 h-5 mr-2" />
+                Filters
+              </button>
             </div>
-          </form>
+          </div>
+        </div>
+
+        {showFilters && (
+          <div className="bg-white/50 dark:bg-gray-900/40 backdrop-blur-2xl p-6 rounded-3xl border border-gray-100 dark:border-white/5 shadow-xl animate-in slide-in-from-top-4">
+            <form onSubmit={applyFilters} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="col-span-full lg:col-span-2 relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input 
+                  type="text" 
+                  name="search"
+                  placeholder="Global search cases..." 
+                  value={filters.search}
+                  onChange={handleFilterChange}
+                  className="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-950/50 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/20"
+                />
+              </div>
+              <div>
+                <select name="status" value={filters.status} onChange={handleFilterChange} className="w-full px-4 py-3 bg-white dark:bg-gray-950/50 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/20 appearance-none">
+                  <option value="">All Statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="registered">Registered</option>
+                  <option value="under_investigation">Active Investigation</option>
+                  <option value="solved">Solved</option>
+                  <option value="closed">Closed</option>
+                </select>
+              </div>
+              <div>
+                <select name="priority" value={filters.priority} onChange={handleFilterChange} className="w-full px-4 py-3 bg-white dark:bg-gray-950/50 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/20 appearance-none">
+                  <option value="">All Priorities</option>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </div>
+              <div className="flex justify-end col-span-full gap-2">
+                <button type="button" onClick={clearFilters} className="px-6 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition">Clear</button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="flex justify-center items-center min-h-[40vh]">
+            <div className="relative flex justify-center items-center">
+              <div className="absolute inset-0 bg-indigo-500/20 blur-xl rounded-full h-16 w-16 animate-pulse"></div>
+              <Loader2 className="w-12 h-12 text-indigo-500 animate-spin relative z-10" />
+            </div>
+          </div>
+        ) : error ? (
+          <div className="bg-red-500/10 backdrop-blur-xl border border-red-500/20 p-8 rounded-3xl text-center flex flex-col items-center">
+            <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
+            <h3 className="text-2xl font-bold text-red-500 mb-2">Sync Error</h3>
+            <p className="text-red-400 mb-6">{error}</p>
+            <button onClick={fetchCasesAndOfficers} className="px-6 py-2.5 bg-red-500/20 text-red-500 font-bold rounded-xl">Try Again</button>
+          </div>
+        ) : cases.length === 0 ? (
+          <div className="bg-white/50 dark:bg-gray-900/40 backdrop-blur-2xl p-16 rounded-[2.5rem] border border-gray-100 dark:border-white/5 shadow-xl text-center flex flex-col items-center">
+            <div className="bg-indigo-500/10 p-6 rounded-full mb-6">
+              <Briefcase className="w-16 h-16 text-indigo-500" />
+            </div>
+            <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-2">No Records Found</h3>
+            <p className="text-gray-500 dark:text-gray-400 mb-6 font-medium">No cases match your filters or the system is empty.</p>
+            <button onClick={clearFilters} className="text-indigo-600 font-bold hover:underline">Reset Filters</button>
+          </div>
+        ) : (
+          <div className="bg-white/50 dark:bg-gray-900/40 backdrop-blur-2xl rounded-[2rem] border border-gray-100 dark:border-white/5 shadow-xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50/50 dark:bg-gray-950/50 text-[10px] uppercase font-black text-gray-400 dark:text-gray-500 tracking-widest border-b border-gray-100 dark:border-gray-800">
+                    <th className="p-4 pl-6">Case Identifier</th>
+                    <th className="p-4">Lead Officer</th>
+                    <th className="p-4">Status & Priority</th>
+                    <th className="p-4 pr-6 text-right">Actions & AI</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-white/[0.02]">
+                  {cases.map((c) => {
+                    const statusCfg = getStatusConfig(c.status);
+                    const priorityCfg = getPriorityConfig(c.priority);
+                    const isUpdating = updatingCaseId === c._id;
+                    const isAnalyzing = analyzingCaseId === c._id;
+                    
+                    return (
+                      <tr key={c._id} className={`group hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors ${isUpdating ? 'opacity-50 pointer-events-none' : ''}`}>
+                        <td className="p-4 pl-6 align-middle">
+                          <Link to={`/cases/${c._id}`} className="block hover:underline decoration-indigo-500/30 underline-offset-4">
+                            <p className="font-black text-gray-900 dark:text-white text-lg">{c.caseNumber}</p>
+                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate max-w-[250px]">{c.title}</p>
+                          </Link>
+                        </td>
+                        <td className="p-4 align-middle">
+                          {canEdit ? (
+                            <div className="relative">
+                              <select 
+                                value={c.assignedOfficer?._id || ''} 
+                                onChange={(e) => quickUpdateCase(c._id, { assignedOfficer: e.target.value })}
+                                className="w-full sm:w-48 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-700 text-sm font-bold text-gray-700 dark:text-gray-300 rounded-xl px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all appearance-none cursor-pointer"
+                              >
+                                <option value="">Unassigned</option>
+                                {policeOfficers.map(officer => (
+                                  <option key={officer._id} value={officer._id}>{officer.name}</option>
+                                ))}
+                              </select>
+                              <Shield className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-bold">
+                                {c.assignedOfficer ? c.assignedOfficer.name.charAt(0).toUpperCase() : <User className="w-4 h-4" />}
+                              </div>
+                              <span className="font-bold text-gray-700 dark:text-gray-300 text-sm">
+                                {c.assignedOfficer ? c.assignedOfficer.name : 'Unassigned'}
+                              </span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-4 align-middle">
+                          <div className="flex flex-col gap-2">
+                            {canEdit ? (
+                              <select 
+                                value={c.status}
+                                onChange={(e) => quickUpdateCase(c._id, { status: e.target.value })}
+                                className={`text-xs font-bold uppercase rounded-lg px-2 py-1 outline-none border cursor-pointer ${statusCfg.color} ${statusCfg.bg} border-transparent hover:border-current transition-colors`}
+                              >
+                                <option value="pending">Pending</option>
+                                <option value="registered">Registered</option>
+                                <option value="under_investigation">Active Investigation</option>
+                                <option value="solved">Solved</option>
+                                <option value="closed">Closed</option>
+                              </select>
+                            ) : (
+                              <span className={`inline-flex items-center w-max px-2.5 py-1 rounded-lg text-xs font-bold uppercase ${statusCfg.bg} ${statusCfg.color}`}>
+                                {c.status.replace('_', ' ')}
+                              </span>
+                            )}
+                            <span className={`inline-flex items-center w-max px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${priorityCfg.color} ${priorityCfg.border}`}>
+                              {c.priority} Priority
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-4 pr-6 align-middle text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {canEdit && (
+                              <button 
+                                onClick={() => runInlineAiAnalysis(c)}
+                                disabled={isAnalyzing}
+                                title="Run Groq AI Analysis"
+                                className="p-2.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 rounded-xl transition-all hover:scale-110 hover:shadow-[0_0_15px_-3px_rgba(99,102,241,0.4)]"
+                              >
+                                {isAnalyzing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
+                              </button>
+                            )}
+                            <Link 
+                              to={`/cases/${c._id}`}
+                              className="px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white text-sm font-bold rounded-xl transition-colors inline-block"
+                            >
+                              Open
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            
+            {totalPages > 1 && (
+              <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between bg-white/30 dark:bg-gray-950/30">
+                <span className="text-sm font-bold text-gray-500">
+                  Page {page} of {totalPages}
+                </span>
+                <div className="flex space-x-2">
+                  <button 
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="p-2 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 disabled:opacity-30 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button 
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    className="p-2 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 disabled:opacity-30 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
-      {loading ? (
-        <div className="flex flex-col justify-center items-center h-64 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
-          <p className="text-gray-500 dark:text-gray-400">Loading Database...</p>
-        </div>
-      ) : error ? (
-        <div className="bg-red-50 dark:bg-red-900/20 p-6 rounded-2xl border border-red-100 dark:border-red-800 text-center flex flex-col items-center">
-          <AlertCircle className="w-12 h-12 text-red-500 mb-2" />
-          <h3 className="text-lg font-bold text-red-700 dark:text-red-400">Database Error</h3>
-          <p className="text-red-600 dark:text-red-300 mt-1">{error}</p>
-          <button onClick={fetchCases} className="mt-4 px-4 py-2 bg-red-100 dark:bg-red-800 text-red-700 dark:text-white rounded-lg hover:bg-red-200 dark:hover:bg-red-700 transition">Try Again</button>
-        </div>
-      ) : cases.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 p-12 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm text-center flex flex-col items-center">
-          <div className="bg-indigo-50 dark:bg-indigo-900/30 p-4 rounded-full mb-4">
-            <Briefcase className="w-12 h-12 text-indigo-500 dark:text-indigo-400" />
-          </div>
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No Cases Found</h3>
-          <p className="text-gray-500 dark:text-gray-400 max-w-md mb-4">
-            No records match your search criteria, or the database is currently empty.
-          </p>
-          <button onClick={clearFilters} className="text-indigo-600 font-medium hover:underline">Clear All Filters</button>
-        </div>
-      ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-900/50 text-xs uppercase font-semibold text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
-                <tr>
-                  <th className="px-6 py-4">Case Details</th>
-                  <th className="px-6 py-4">Priority</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                {cases.map((investigationCase) => (
-                  <tr key={investigationCase._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <p className="font-bold text-gray-900 dark:text-white">{investigationCase.caseNumber}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate max-w-[200px]">{investigationCase.title}</p>
-                      {investigationCase.fir && (
-                        <p className="text-[10px] text-indigo-500 font-semibold mt-1">Linked to {investigationCase.fir.firNumber}</p>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase border ${getPriorityBadge(investigationCase.priority)}`}>
-                        {investigationCase.priority}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase ${getStatusColor(investigationCase.status)}`}>
-                        {investigationCase.status.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <Link 
-                        to={`/cases/${investigationCase._id}`}
-                        className="text-indigo-600 dark:text-indigo-400 font-medium hover:text-indigo-800 dark:hover:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1.5 rounded-lg inline-block transition"
-                      >
-                        Open File
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          
-          {totalPages > 1 && (
-            <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                Page <span className="font-bold">{page}</span> of <span className="font-bold">{totalPages}</span>
-              </span>
-              <div className="flex space-x-2">
-                <button 
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <button 
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
+      {/* AI Modal Overlay */}
+      {showAiModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-slate-900 rounded-[2.5rem] border border-indigo-500/30 shadow-[0_0_50px_-12px_rgba(99,102,241,0.5)] w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col relative animate-in zoom-in-95 duration-300">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+            
+            <div className="p-6 border-b border-indigo-500/20 flex justify-between items-center bg-slate-900/80 backdrop-blur-md relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-500/20 text-indigo-400 rounded-xl">
+                  <BrainCircuit className="w-6 h-6" />
+                </div>
+                <h3 className="text-xl font-black text-white">Groq AI Analysis</h3>
               </div>
+              <button 
+                onClick={() => setShowAiModal(false)}
+                className="p-2 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-          )}
+            
+            <div className="p-8 overflow-y-auto relative z-10">
+              {!aiAnalysis ? (
+                <div className="flex flex-col items-center justify-center py-12 text-indigo-400">
+                  <Loader2 className="w-12 h-12 animate-spin mb-4" />
+                  <p className="font-bold animate-pulse">Running Neural Inference...</p>
+                </div>
+              ) : (
+                <div className="prose prose-invert max-w-none">
+                  <h4 className="text-sm font-bold text-indigo-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <Target className="w-4 h-4" /> Tactical Intelligence Output
+                  </h4>
+                  <div className="bg-black/20 p-6 rounded-2xl border border-indigo-500/10 text-gray-200 font-medium leading-relaxed whitespace-pre-wrap">
+                    {aiAnalysis}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-6 border-t border-indigo-500/20 bg-slate-900/80 backdrop-blur-md relative z-10 flex justify-end">
+              <button 
+                onClick={() => setShowAiModal(false)}
+                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-colors"
+              >
+                Close Terminal
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </DashboardLayout>

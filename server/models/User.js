@@ -20,9 +20,19 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
       minlength: [6, 'Password must be at least 6 characters'],
       select: false,
+      required: function() {
+        return this.authProvider === 'local';
+      }
+    },
+    authProvider: {
+      type: String,
+      enum: ['local', 'google', 'facebook'],
+      default: 'local'
+    },
+    socialId: {
+      type: String,
     },
     role: {
       type: String,
@@ -33,6 +43,47 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    avatar: {
+      type: String,
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    twoFactorEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    onboardingCompleted: {
+      type: Boolean,
+      default: false,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    
+    // --- Public Role Specific Fields ---
+    dateOfBirth: Date,
+    address: {
+      street: String,
+      city: String,
+      state: String,
+      zipCode: String,
+      country: String
+    },
+    identificationType: {
+      type: String,
+      enum: ['NationalID', 'Passport', 'DriverLicense', 'Other']
+    },
+    identificationNumber: String,
+    emergencyContact: {
+      name: String,
+      phone: String,
+      relation: String
+    },
+
+    // --- Police/Admin Role Specific Fields ---
     badgeNumber: {
       type: String,
       trim: true,
@@ -41,17 +92,11 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    avatar: {
-      type: String,
-    },
-    isVerified: {
-      type: Boolean,
-      default: false,
-    },
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
+    rank: String,
+    station: String,
+    jurisdiction: String,
+    specialization: String,
+    dateJoined: Date,
   },
   {
     timestamps: true,
@@ -59,14 +104,16 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.index({ role: 1 });
+userSchema.index({ email: 1 });
 
 userSchema.pre('save', async function () {
-  if (!this.isModified('password')) return;
+  if (!this.isModified('password') || !this.password) return;
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });
 
 userSchema.methods.matchPassword = async function (enteredPassword) {
+  if (!this.password) return false;
   return await bcrypt.compare(enteredPassword, this.password);
 };
 

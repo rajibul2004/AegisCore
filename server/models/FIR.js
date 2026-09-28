@@ -13,6 +13,7 @@ const firSchema = new mongoose.Schema(
       required: [true, 'Complainant ID is required'],
       index: true,
     },
+    caseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Case', default: null },
     assignedOfficer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -65,16 +66,14 @@ const firSchema = new mongoose.Schema(
 );
 
 // Pre-save hook to generate a unique FIR number
-firSchema.pre('save', async function (next) {
+firSchema.pre('save', function () {
   if (this.isNew) {
     const year = new Date().getFullYear();
     const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
     
     // Format: FIR-YYYY-XXXX (e.g., FIR-2023-A4F2)
-    // A robust system would use a counter collection, but this is simple and effective for this project
     this.firNumber = `FIR-${year}-${randomStr}`;
   }
-  next();
 });
 
 const FIR = mongoose.model('FIR', firSchema);

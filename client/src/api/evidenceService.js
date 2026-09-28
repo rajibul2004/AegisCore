@@ -1,6 +1,11 @@
 import api from './axios';
 
 export const evidenceService = {
+  getAllEvidence: async (params = {}) => {
+    const response = await api.get('/evidence', { params });
+    return response.data;
+  },
+
   getEvidenceByCase: async (caseId) => {
     const response = await api.get(`/evidence/case/${caseId}`);
     return response.data;

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { auditService } from '../../api/auditService';
 import { Activity, ShieldCheck, AlertTriangle, User, FileText, Briefcase, Server, Search, Filter } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import DashboardLayout from '../../components/layout/DashboardLayout';
 
 const SystemAudit = () => {
   const [logs, setLogs] = useState([]);
@@ -36,6 +37,7 @@ const SystemAudit = () => {
   };
 
   return (
+    <DashboardLayout>
     <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -154,6 +156,7 @@ const SystemAudit = () => {
         </div>
       </div>
     </div>
+    </DashboardLayout>
   );
 };
 

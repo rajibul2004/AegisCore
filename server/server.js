@@ -45,6 +45,8 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+const userRoutes = require('./routes/userRoutes');
+app.use('/api/users', userRoutes);
 app.use('/api/firs', firRoutes);
 app.use('/api/cases', caseRoutes);
 app.use('/api/suspects', suspectRoutes);
@@ -58,6 +60,18 @@ app.use('/api/test', testRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to Crime Investigation System API' });
+});
+
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: 'Route not found' });
+});
+
+app.use((err, req, res, next) => {
+  const statusCode = err.statusCode || 500;
+  res.status(statusCode).json({
+    success: false,
+    message: err.message || 'Internal Server Error'
+  });
 });
 
 const http = require('http');

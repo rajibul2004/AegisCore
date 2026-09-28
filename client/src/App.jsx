@@ -5,7 +5,10 @@ import { useContext } from 'react';
 
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import TwoFactorVerify from './pages/auth/TwoFactorVerify';
 import Dashboard from './pages/dashboard/Dashboard';
+import GlobalSearch from './pages/dashboard/GlobalSearch';
+import Settings from './pages/dashboard/Settings';
 import FIRList from './pages/firs/FIRList';
 import CreateFIR from './pages/firs/CreateFIR';
 import FIRDetails from './pages/firs/FIRDetails';
@@ -15,6 +18,8 @@ import CaseDetails from './pages/cases/CaseDetails';
 import SuspectList from './pages/suspects/SuspectList';
 import CreateSuspect from './pages/suspects/CreateSuspect';
 import SuspectDetails from './pages/suspects/SuspectDetails';
+import EvidenceLocker from './pages/evidence/EvidenceLocker';
+import UserManagement from './pages/admin/UserManagement';
 import NotificationsList from './pages/notifications/NotificationsList';
 import MapDashboard from './pages/map/MapDashboard';
 import AILogs from './pages/admin/AILogs';
@@ -37,15 +42,17 @@ function App() {
       <AuthProvider>
         <SocketProvider>
           <Router>
-          <ThemeToggle />
           <Routes>
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
-            
+            <Route path="/verify-2fa" element={<TwoFactorVerify />} />
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/search" element={<ProtectedRoute><GlobalSearch /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             
             {/* FIR Routes */}
             <Route path="/firs" element={<ProtectedRoute><FIRList /></ProtectedRoute>} />
+            <Route path="/my-firs" element={<ProtectedRoute><FIRList /></ProtectedRoute>} />
             <Route path="/firs/new" element={<ProtectedRoute><CreateFIR /></ProtectedRoute>} />
             <Route path="/firs/:id" element={<ProtectedRoute><FIRDetails /></ProtectedRoute>} />
             
@@ -66,16 +73,10 @@ function App() {
             <Route path="/map" element={<ProtectedRoute><MapDashboard /></ProtectedRoute>} />
 
             {/* Admin Routes */}
-            <Route path="/admin/ai-logs" element={
-              <ProtectedRoute>
-                <AILogs />
-              </ProtectedRoute>
-            } />
-            <Route path="/audit" element={
-              <ProtectedRoute>
-                <SystemAudit />
-              </ProtectedRoute>
-            } />
+            <Route path="/admin/ai-logs" element={<ProtectedRoute allowedRoles={['admin']}><AILogs /></ProtectedRoute>} />
+            <Route path="/audit" element={<ProtectedRoute allowedRoles={['admin']}><SystemAudit /></ProtectedRoute>} />
+            <Route path="/users" element={<ProtectedRoute allowedRoles={['admin']}><UserManagement /></ProtectedRoute>} />
+            <Route path="/evidence" element={<ProtectedRoute allowedRoles={['police', 'admin']}><EvidenceLocker /></ProtectedRoute>} />
           </Routes>
         </Router>
         </SocketProvider>

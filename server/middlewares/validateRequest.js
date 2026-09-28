@@ -48,6 +48,8 @@ const validateFIR = (req, res, next) => {
   const errors = [];
   const { title, description, incidentDate, location } = req.body;
 
+  console.log('Validating FIR:', { title, description, incidentDate, location }); // Debugging log
+
   if (!title || title.trim().length < 5) {
     errors.push('Title must be at least 5 characters long');
   }

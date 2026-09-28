@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { firService } from '../../api/firService';
-import { MapPin, Loader2, AlertTriangle, ExternalLink } from 'lucide-react';
+import { MapPin, Loader2, AlertTriangle, ExternalLink, Shield } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 // Fix for default Leaflet marker icons in React
@@ -34,7 +34,7 @@ const icons = {
   default: createCustomIcon('blue')
 };
 
-const CrimeMap = ({ height = "400px" }) => {
+const CrimeMap = ({ height = "400px", theme = "light" }) => {
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -48,7 +48,6 @@ const CrimeMap = ({ height = "400px" }) => {
       setLoading(true);
       const res = await firService.getFIRLocations();
       
-      // Filter out invalid coordinates just in case
       const validLocations = res.data.filter(loc => 
         loc.location?.coordinates?.lat && loc.location?.coordinates?.lng
       );
@@ -64,40 +63,46 @@ const CrimeMap = ({ height = "400px" }) => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700" style={{ height }}>
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-2" />
-        <p className="text-gray-500 text-sm font-medium">Loading map data...</p>
+      <div className="flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 h-full w-full" style={{ height }}>
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-4" />
+        <p className="text-gray-500 dark:text-gray-400 text-sm font-bold tracking-widest uppercase">Initializing Geospatial Link...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-200 dark:border-red-900/30" style={{ height }}>
+      <div className="flex flex-col items-center justify-center bg-red-50 dark:bg-red-900/10 h-full w-full" style={{ height }}>
         <AlertTriangle className="w-8 h-8 text-red-500 mb-2" />
-        <p className="text-red-600 dark:text-red-400 text-sm font-medium">{error}</p>
+        <p className="text-red-600 dark:text-red-400 text-sm font-bold">{error}</p>
       </div>
     );
   }
 
-  // Default center (could be dynamic based on bounds)
   const defaultCenter = locations.length > 0 
     ? [locations[0].location.coordinates.lat, locations[0].location.coordinates.lng]
-    : [20.5937, 78.9629]; // Default to India roughly
+    : [20.5937, 78.9629]; 
     
   const defaultZoom = locations.length > 0 ? 12 : 5;
 
+  // Premium Map Tiles (CartoDB)
+  const tileUrl = theme === 'dark' 
+    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+
   return (
-    <div className="relative rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-gray-700 z-0">
+    <div className="relative w-full h-full z-0">
       <MapContainer 
         center={defaultCenter} 
         zoom={defaultZoom} 
         style={{ height, width: '100%' }}
         className="z-0"
+        zoomControl={false} // We can disable default zoom control to make it cleaner, or keep it. We'll keep default for now but style is overridden by leaflet.css
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          key={theme} // Force re-render when theme changes
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          url={tileUrl}
         />
         
         {locations.map(loc => (
@@ -106,39 +111,54 @@ const CrimeMap = ({ height = "400px" }) => {
             position={[loc.location.coordinates.lat, loc.location.coordinates.lng]}
             icon={icons[loc.priority] || icons.default}
           >
-            <Popup className="custom-popup">
-              <div className="p-1">
-                <h3 className="font-bold text-gray-900 text-sm mb-1">{loc.title}</h3>
-                <p className="text-xs text-gray-500 mb-2 border-b pb-2">
-                  <span className="font-semibold text-gray-700">FIR:</span> {loc.firNumber}
-                </p>
-                <div className="flex justify-between items-center mb-2">
-                  <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
-                    loc.status === 'registered' ? 'bg-blue-100 text-blue-800' :
-                    loc.status === 'investigating' ? 'bg-purple-100 text-purple-800' :
-                    loc.status === 'closed' ? 'bg-green-100 text-green-800' :
-                    'bg-gray-100 text-gray-800'
+            {/* Custom styled popup content using Tailwind */}
+            <Popup className="custom-popup" closeButton={false}>
+              <div className="p-1 min-w-[220px]">
+                
+                {/* Popup Header */}
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="font-black text-gray-900 text-sm leading-tight pr-2">{loc.title}</h3>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">
+                      FIR #{loc.firNumber.split('-').pop()}
+                    </p>
+                  </div>
+                  <Shield className="w-4 h-4 text-indigo-500 opacity-50 flex-shrink-0" />
+                </div>
+                
+                {/* Badges */}
+                <div className="flex gap-2 mb-3">
+                  <span className={`text-[9px] uppercase font-black tracking-wider px-2 py-1 rounded-md ${
+                    loc.status === 'registered' ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-600/20' :
+                    loc.status === 'investigating' ? 'bg-purple-50 text-purple-700 ring-1 ring-purple-600/20' :
+                    loc.status === 'closed' ? 'bg-green-50 text-green-700 ring-1 ring-green-600/20' :
+                    'bg-gray-50 text-gray-700 ring-1 ring-gray-600/20'
                   }`}>
                     {loc.status}
                   </span>
-                  <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
-                    loc.priority === 'critical' ? 'bg-red-100 text-red-800' :
-                    loc.priority === 'high' ? 'bg-orange-100 text-orange-800' :
-                    'bg-gray-100 text-gray-800'
+                  <span className={`text-[9px] uppercase font-black tracking-wider px-2 py-1 rounded-md ${
+                    loc.priority === 'critical' ? 'bg-red-50 text-red-700 ring-1 ring-red-600/20' :
+                    loc.priority === 'high' ? 'bg-orange-50 text-orange-700 ring-1 ring-orange-600/20' :
+                    'bg-gray-50 text-gray-700 ring-1 ring-gray-600/20'
                   }`}>
                     {loc.priority}
                   </span>
                 </div>
-                <p className="text-xs text-gray-600 mb-3 truncate" title={loc.location.address}>
-                  <MapPin className="w-3 h-3 inline mr-1" />
-                  {loc.location.address}
-                </p>
                 
+                {/* Location */}
+                <div className="flex items-start bg-gray-50 p-2 rounded-lg mb-4 border border-gray-100">
+                  <MapPin className="w-3.5 h-3.5 text-gray-400 mr-1.5 mt-0.5 flex-shrink-0" />
+                  <p className="text-[11px] text-gray-600 font-medium leading-snug line-clamp-2" title={loc.location.address}>
+                    {loc.location.address}
+                  </p>
+                </div>
+                
+                {/* Action Button */}
                 <Link 
                   to={`/firs/${loc._id}`} 
-                  className="block text-center text-xs bg-indigo-600 text-white font-semibold py-1.5 rounded hover:bg-indigo-700 transition"
+                  className="flex items-center justify-center w-full text-[11px] bg-indigo-600 text-white font-bold py-2 rounded-lg hover:bg-indigo-700 transition shadow-sm hover:shadow active:scale-95"
                 >
-                  View Details <ExternalLink className="w-3 h-3 inline ml-1" />
+                  View Complete Dossier <ExternalLink className="w-3 h-3 ml-1.5" strokeWidth={2.5} />
                 </Link>
               </div>
             </Popup>
