@@ -6,9 +6,12 @@ import { useContext } from 'react';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import TwoFactorVerify from './pages/auth/TwoFactorVerify';
+import VerifyEmail from './pages/auth/VerifyEmail';
+import Onboarding from './pages/auth/Onboarding';
 import Dashboard from './pages/dashboard/Dashboard';
 import GlobalSearch from './pages/dashboard/GlobalSearch';
 import Settings from './pages/dashboard/Settings';
+import Profile from './pages/dashboard/Profile';
 import FIRList from './pages/firs/FIRList';
 import CreateFIR from './pages/firs/CreateFIR';
 import FIRDetails from './pages/firs/FIRDetails';
@@ -35,6 +38,7 @@ const PublicRoute = ({ children }) => {
 };
 
 import { SocketProvider } from './context/SocketContext';
+import { Toaster } from 'react-hot-toast';
 
 function App() {
   return (
@@ -42,13 +46,18 @@ function App() {
       <AuthProvider>
         <SocketProvider>
           <Router>
+          <Toaster position="top-right" />
           <Routes>
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
             <Route path="/verify-2fa" element={<TwoFactorVerify />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+            
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/search" element={<ProtectedRoute><GlobalSearch /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             
             {/* FIR Routes */}
             <Route path="/firs" element={<ProtectedRoute><FIRList /></ProtectedRoute>} />

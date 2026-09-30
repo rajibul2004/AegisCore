@@ -1,6 +1,6 @@
 import { useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
-import { LayoutDashboard, Briefcase, FileText, Users, Fingerprint, FilePlus, Search, Settings, Activity, Map as MapIcon } from 'lucide-react';
+import { LayoutDashboard, Briefcase, FileText, Users, FilePlus, Search, Settings, Activity, Map as MapIcon, User } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 const Sidebar = ({ isOpen, onClose }) => {
@@ -10,7 +10,8 @@ const Sidebar = ({ isOpen, onClose }) => {
   const getNavItems = () => {
     const baseItems = [
       { name: 'Dashboard', icon: <LayoutDashboard strokeWidth={2} />, path: '/' },
-      { name: 'Crime Map', icon: <MapIcon strokeWidth={2} />, path: '/map' }
+      { name: 'Crime Map', icon: <MapIcon strokeWidth={2} />, path: '/map' },
+      { name: 'My Profile', icon: <User strokeWidth={2} />, path: '/profile' }
     ];
 
     if (user?.role === 'admin') {
@@ -64,9 +65,9 @@ const Sidebar = ({ isOpen, onClose }) => {
       >
         {/* Desktop Logo Header (matches Navbar height & style) */}
         <div className="hidden lg:flex items-center justify-center h-[72px] border-b border-gray-200/60 dark:border-white/5">
-          <Fingerprint className="h-8 w-8 text-indigo-600 dark:text-indigo-400 mr-2" strokeWidth={1.5} />
+          <img src="/favicon.png" alt="AegisCore Logo" className="h-10 w-auto rounded-xl mr-3 object-contain" />
           <span className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter">
-            Case<span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-cyan-600 dark:from-indigo-400 dark:to-cyan-400">Intel</span>
+            Aegis<span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-cyan-600 dark:from-indigo-400 dark:to-cyan-400">Core</span>
           </span>
         </div>
         

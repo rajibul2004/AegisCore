@@ -1,6 +1,7 @@
 import { useContext } from 'react';
+import { Link } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
-import { Menu, LogOut, Fingerprint } from 'lucide-react';
+import { Menu, LogOut } from 'lucide-react';
 import NotificationBell from './NotificationBell';
 import ThemeToggle from '../common/ThemeToggle';
 
@@ -20,9 +21,9 @@ const Navbar = ({ onMenuClick }) => {
         
         {/* Mobile Premium Branding */}
         <div className="flex items-center lg:hidden mr-4">
-          <Fingerprint className="h-7 w-7 text-indigo-600 dark:text-indigo-400 mr-2" strokeWidth={1.5} />
+          <img src="/favicon.png" alt="AegisCore Logo" className="h-8 w-auto rounded-lg mr-2 object-contain" />
           <span className="text-xl font-black text-gray-900 dark:text-white tracking-tighter">
-            Case<span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-cyan-600 dark:from-indigo-400 dark:to-cyan-400">Intel</span>
+            Aegis<span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-cyan-600 dark:from-indigo-400 dark:to-cyan-400">Core</span>
           </span>
         </div>
 
@@ -41,20 +42,20 @@ const Navbar = ({ onMenuClick }) => {
         <div className="w-px h-6 bg-gray-200 dark:bg-white/10 mx-1 hidden sm:block"></div>
 
         {/* User Info (Desktop) */}
-        <div className="hidden sm:flex items-center space-x-3">
+        <Link to="/profile" className="hidden sm:flex items-center space-x-3 hover:opacity-80 transition-opacity">
           <div className="flex flex-col text-right justify-center">
             <span className="text-sm font-bold text-gray-900 dark:text-white leading-tight">{user?.name}</span>
             <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">{user?.role}</span>
           </div>
-        </div>
+        </Link>
         
         {/* Premium Glowing Avatar */}
-        <div className="relative group cursor-pointer">
+        <Link to="/profile" className="relative group cursor-pointer block">
           <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-cyan-500 rounded-full blur opacity-30 group-hover:opacity-70 transition duration-300"></div>
           <div className="relative h-10 w-10 rounded-full bg-gradient-to-br from-indigo-600 to-cyan-600 flex items-center justify-center text-white font-bold shadow-sm ring-2 ring-white dark:ring-[#0A0A0B]">
             {user?.name?.charAt(0).toUpperCase()}
           </div>
-        </div>
+        </Link>
 
         <div className="w-px h-6 bg-gray-200 dark:bg-white/10 mx-1 hidden sm:block"></div>
 

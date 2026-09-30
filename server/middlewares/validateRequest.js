@@ -46,9 +46,19 @@ const validateLogin = (req, res, next) => {
 
 const validateFIR = (req, res, next) => {
   const errors = [];
-  const { title, description, incidentDate, location } = req.body;
+  let { title, description, incidentDate, location } = req.body;
 
-  console.log('Validating FIR:', { title, description, incidentDate, location }); // Debugging log
+  // Handle FormData where location might be a JSON string
+  if (typeof location === 'string') {
+    try {
+      location = JSON.parse(location);
+      req.body.location = location; // Write it back so controller gets the object
+    } catch (e) {
+      errors.push('Invalid location format');
+    }
+  }
+
+  
 
   if (!title || title.trim().length < 5) {
     errors.push('Title must be at least 5 characters long');

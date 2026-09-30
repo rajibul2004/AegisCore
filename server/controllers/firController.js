@@ -1,9 +1,18 @@
 const auditService = require('../services/auditService');
+const notificationService = require('../services/notificationService');
 const FIR = require('../models/FIR');
 
 const createFIR = async (req, res) => {
   try {
     const { title, description, incidentDate, location, isAnonymous } = req.body;
+
+    // Map uploaded files to attachments array
+    const attachments = req.files ? req.files.map(file => ({
+      url: file.path,
+      publicId: file.filename,
+      originalName: file.originalname,
+      resourceType: file.resource_type || 'auto'
+    })) : [];
 
     const fir = await FIR.create({
       complainant: req.user._id,
@@ -11,7 +20,8 @@ const createFIR = async (req, res) => {
       description,
       incidentDate,
       location,
-      isAnonymous: isAnonymous || false,
+      isAnonymous: isAnonymous === 'true' || isAnonymous === true, // Handle FormData strings
+      attachments,
     });
 
     await auditService.log(req, 'fir_created', 'FIR', fir._id, { firNumber: fir.firNumber });
@@ -39,35 +49,48 @@ const getFIRs = async (req, res) => {
     const startIndex = (page - 1) * limit;
 
     let query = {};
+    let andConditions = [];
 
-    // Public users can only see their own FIRs
-    if (req.user.role === 'public') {
-      query.complainant = req.user._id;
+    // Public and Police users see only FIRs they personally filed in the registry list
+    if (req.user.role === 'public' || req.user.role === 'police') {
+      andConditions.push({ complainant: req.user._id });
+    } 
+    // Admins see everything (no role-based restrictions)
+    // BUT they can explicitly request to see ONLY their own via ?mine=true
+    if (req.query.mine === 'true' && req.user.role === 'admin') {
+      andConditions.push({ complainant: req.user._id });
     }
 
     // Advanced Filtering
-    if (req.query.status) query.status = req.query.status;
-    if (req.query.priority) query.priority = req.query.priority;
+    if (req.query.status) andConditions.push({ status: req.query.status });
+    if (req.query.priority) andConditions.push({ priority: req.query.priority });
     if (req.query.firNumber) {
-      query.firNumber = { $regex: req.query.firNumber, $options: 'i' };
+      andConditions.push({ firNumber: { $regex: req.query.firNumber, $options: 'i' } });
     }
     if (req.query.location) {
-      query['location.address'] = { $regex: req.query.location, $options: 'i' };
+      andConditions.push({ 'location.address': { $regex: req.query.location, $options: 'i' } });
     }
     if (req.query.search) {
-      query.$or = [
-        { title: { $regex: req.query.search, $options: 'i' } },
-        { description: { $regex: req.query.search, $options: 'i' } }
-      ];
+      andConditions.push({
+        $or: [
+          { title: { $regex: req.query.search, $options: 'i' } },
+          { description: { $regex: req.query.search, $options: 'i' } }
+        ]
+      });
     }
     if (req.query.startDate || req.query.endDate) {
-      query.createdAt = {};
-      if (req.query.startDate) query.createdAt.$gte = new Date(req.query.startDate);
+      let dateQuery = {};
+      if (req.query.startDate) dateQuery.$gte = new Date(req.query.startDate);
       if (req.query.endDate) {
         const end = new Date(req.query.endDate);
         end.setHours(23, 59, 59, 999);
-        query.createdAt.$lte = end;
+        dateQuery.$lte = end;
       }
+      andConditions.push({ createdAt: dateQuery });
+    }
+
+    if (andConditions.length > 0) {
+      query.$and = andConditions;
     }
 
     const total = await FIR.countDocuments(query);
@@ -143,6 +166,15 @@ const getFIRById = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Not authorized to view this FIR' });
     }
 
+    // Security check: Police can only view FIRs they registered or are assigned to
+    if (req.user.role === 'police') {
+      const isComplainant = fir.complainant._id.toString() === req.user._id.toString();
+      const isAssigned = fir.assignedOfficer && fir.assignedOfficer._id.toString() === req.user._id.toString();
+      if (!isComplainant && !isAssigned) {
+        return res.status(403).json({ success: false, message: 'Not authorized to view this FIR. You must be the assigned officer or the complainant.' });
+      }
+    }
+
     res.status(200).json({
       success: true,
       data: fir,
@@ -182,6 +214,55 @@ const updateFIRStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: 'FIR not found' });
     }
 
+    // Auto-generate or update Case if registered or assigned
+    if (updateFields.status === 'registered' || updateFields.assignedOfficer) {
+      const Case = require('../models/Case');
+      let existingCase = await Case.findOne({ fir: fir._id });
+      
+      if (!existingCase && updateFields.status !== 'rejected') {
+         existingCase = await Case.create({
+            fir: fir._id,
+            caseNumber: `CASE-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            title: `Investigation: ${fir.title || 'Unknown'}`.substring(0, 100),
+            description: fir.description || 'No description available',
+            priority: updateFields.priority || fir.priority,
+            assignedOfficer: updateFields.assignedOfficer || req.user._id,
+            status: 'registered'
+         });
+         
+         // Auto-migrate FIR attachments to Evidence Locker
+         if (fir.attachments && fir.attachments.length > 0) {
+           const Evidence = require('../models/Evidence');
+           const evidenceDocs = fir.attachments.map(att => ({
+              caseId: existingCase._id,
+              title: `FIR Attachment: ${att.originalName || 'File'}`.substring(0, 100),
+              description: 'Automatically imported from initial FIR submission.',
+              fileUrl: att.url,
+              originalName: att.originalName || 'unknown_file',
+              mimeType: att.resourceType || 'application/octet-stream',
+              size: 1024, // fallback size
+              uploadedBy: fir.complainant || req.user._id
+           }));
+           await Evidence.insertMany(evidenceDocs);
+         }
+      } else if (existingCase && updateFields.assignedOfficer) {
+         existingCase.assignedOfficer = updateFields.assignedOfficer;
+         await existingCase.save();
+      }
+
+      // Notify the assigned officer if they were just assigned
+      if (updateFields.assignedOfficer && existingCase) {
+         await notificationService.createNotification({
+            recipient: updateFields.assignedOfficer,
+            sender: req.user._id,
+            type: 'case_assigned',
+            title: 'New Case Assigned',
+            message: `You have been assigned to Case ${existingCase.caseNumber} (FIR: ${fir.firNumber})`,
+            link: `/cases/${existingCase._id}`
+         });
+      }
+    }
+
     await auditService.log(req, 'fir_status_updated', 'FIR', fir._id, updateFields);
 
     res.status(200).json({
@@ -190,10 +271,11 @@ const updateFIRStatus = async (req, res) => {
       data: fir,
     });
   } catch (error) {
+    console.error('Error updating FIR:', error);
     if (error.name === 'CastError') {
       return res.status(404).json({ success: false, message: 'FIR not found' });
     }
-    res.status(500).json({ success: false, message: 'Server error while updating FIR' });
+    res.status(500).json({ success: false, message: 'Server error while updating FIR', error: error.message });
   }
 };
 

@@ -76,6 +76,14 @@ const getEvidenceByCase = async (req, res) => {
   try {
     const { caseId } = req.params;
 
+    // Security check for Police
+    if (req.user.role === 'police') {
+      const investigationCase = await Case.findById(caseId);
+      if (!investigationCase || (investigationCase.assignedOfficer && investigationCase.assignedOfficer.toString() !== req.user._id.toString())) {
+        return res.status(403).json({ success: false, message: 'Access denied. You are not assigned to this case.' });
+      }
+    }
+
     const evidence = await Evidence.find({ caseId })
       .populate('uploadedBy', 'name badgeNumber')
       .sort({ createdAt: -1 });
@@ -86,6 +94,7 @@ const getEvidenceByCase = async (req, res) => {
       data: evidence,
     });
   } catch (error) {
+    console.error('getEvidenceByCase Error:', error);
     res.status(500).json({ success: false, message: 'Server error while fetching evidence' });
   }
 };
@@ -120,11 +129,29 @@ const getAllEvidence = async (req, res) => {
     const startIndex = (page - 1) * limit;
     
     let query = {};
+    const andConditions = [];
+
+    // Role-based scoping
+    if (req.user.role === 'police') {
+      // Find cases assigned to this police officer
+      const myCases = await Case.find({ assignedOfficer: req.user._id }).select('_id');
+      const myCaseIds = myCases.map(c => c._id);
+      
+      // Restrict evidence to only these case IDs
+      andConditions.push({ caseId: { $in: myCaseIds } });
+    }
+
     if (req.query.search) {
-      query.$or = [
-        { title: { $regex: req.query.search, $options: 'i' } },
-        { description: { $regex: req.query.search, $options: 'i' } }
-      ];
+      andConditions.push({
+        $or: [
+          { title: { $regex: req.query.search, $options: 'i' } },
+          { description: { $regex: req.query.search, $options: 'i' } }
+        ]
+      });
+    }
+
+    if (andConditions.length > 0) {
+      query.$and = andConditions;
     }
 
     const total = await Evidence.countDocuments(query);
@@ -145,6 +172,7 @@ const getAllEvidence = async (req, res) => {
       data: evidence,
     });
   } catch (error) {
+    console.error('Evidence Locker Error:', error);
     res.status(500).json({ success: false, message: 'Server error while fetching global evidence' });
   }
 };

@@ -16,9 +16,13 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const auditRoutes = require('./routes/auditRoutes');
 const testRoutes = require('./routes/testRoutes');
+const helmet = require('helmet');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+app.use(helmet());
+app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" })); // Important for Cloudinary/Map tiles
 
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173',
@@ -76,6 +80,7 @@ app.use((err, req, res, next) => {
 
 const http = require('http');
 const { initializeSocket } = require('./config/socket');
+const startKeepAlive = require('./utils/keepAlive');
 
 const startServer = async () => {
   await connectDB();
@@ -89,6 +94,9 @@ const startServer = async () => {
     console.log(`\n=== Server is running on port ${PORT} ===`);
     console.log(`=== Environment: ${process.env.NODE_ENV || 'development'} ===`);
     console.log(`=== Health check: http://localhost:${PORT}/api/health ===\n`);
+    
+    // Start self-ping mechanism to prevent Render sleep mode
+    startKeepAlive();
   });
 };
 

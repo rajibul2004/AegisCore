@@ -5,16 +5,16 @@ const auditService = require('../services/auditService');
 const otpService = require('../services/otpService');
 const otpDeliveryService = require('../services/otpDeliveryService');
 
-const generateTwoFactorToken = (userId) => {
-  return jwt.sign({ id: userId, purpose: '2fa' }, process.env.JWT_SECRET, {
+const generateTemporaryToken = (userId, purpose) => {
+  return jwt.sign({ id: userId, purpose }, process.env.JWT_SECRET, {
     expiresIn: '5m',
   });
 };
 
-const verifyTwoFactorToken = (token) => {
+const verifyTemporaryToken = (token, expectedPurpose) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (decoded.purpose !== '2fa') return null;
+    if (decoded.purpose !== expectedPurpose) return null;
     return decoded;
   } catch {
     return null;
@@ -23,51 +23,52 @@ const verifyTwoFactorToken = (token) => {
 
 const register = async (req, res) => {
   try {
-    const { name, email, password, role, phone, badgeNumber, department } = req.body;
+    const { name, email, password, role } = req.body;
 
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    let user = await User.findOne({ email: email.toLowerCase() });
 
-    if (existingUser) {
-      return res.status(409).json({
-        success: false,
-        message: 'An account with this email already exists',
+    if (user) {
+      if (user.isVerified) {
+        return res.status(409).json({
+          success: false,
+          message: 'An account with this email already exists',
+        });
+      } else {
+        // Update unverified user's details in case they changed them
+        user.name = name;
+        user.password = password; 
+        user.role = role || 'public';
+        user.authProvider = 'local';
+        await user.save();
+      }
+    } else {
+      user = await User.create({
+        name,
+        email,
+        password,
+        role: role || 'public',
+        isVerified: false,
+        onboardingCompleted: false,
+        authProvider: 'local'
       });
     }
 
-    const user = await User.create({
-      name,
-      email,
-      password,
-      role: role || 'public',
-      phone,
-      badgeNumber,
-      department,
-    });
+    // Generate Email Verification OTP
+    const otp = await otpService.generateAndStoreOTP(user._id, 'email_verification');
+    await otpDeliveryService.deliver(user, otp, 'email_verification');
 
-    generateToken(res, user._id);
+    const verificationToken = generateTemporaryToken(user._id, 'email_verification');
 
     res.status(201).json({
       success: true,
-      message: 'User registered successfully',
-      data: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        isVerified: user.isVerified,
-        twoFactorEnabled: user.twoFactorEnabled,
-        isActive: user.isActive,
-        createdAt: user.createdAt,
-      },
+      verificationRequired: true,
+      verificationToken,
+      message: 'Registration initiated. Please verify your email to complete registration.',
     });
   } catch (error) {
-    if (error.code === 11000) {
-      return res.status(409).json({
-        success: false,
-        message: 'An account with this email already exists',
-      });
+    if (error.statusCode === 429) {
+      return res.status(429).json({ success: false, message: error.message });
     }
-
     res.status(500).json({
       success: false,
       message: 'Server error during registration',
@@ -76,55 +77,237 @@ const register = async (req, res) => {
   }
 };
 
+const verifyEmail = async (req, res) => {
+  try {
+    const { verificationToken, otp } = req.body;
+
+    if (!verificationToken || !otp) {
+      return res.status(400).json({ success: false, message: 'Token and OTP are required' });
+    }
+
+    const decoded = verifyTemporaryToken(verificationToken, 'email_verification');
+    if (!decoded) {
+      return res.status(401).json({ success: false, message: 'Verification session expired. Please register again or request a new code.' });
+    }
+
+    const result = await otpService.verifyOTP(decoded.id, otp, 'email_verification');
+    if (!result.valid) {
+      return res.status(401).json({ success: false, message: result.reason });
+    }
+
+    const user = await User.findById(decoded.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    user.isVerified = true;
+    await user.save();
+
+    // Now log them in properly
+    generateToken(res, user._id);
+    req.user = user;
+    await auditService.log(req, 'email_verified_login', 'User', user._id);
+
+    res.status(200).json({
+      success: true,
+      message: 'Email verified successfully. Welcome!',
+      data: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isVerified: user.isVerified,
+        onboardingCompleted: user.onboardingCompleted,
+        twoFactorEnabled: user.twoFactorEnabled,
+        isActive: user.isActive,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error during email verification' });
+  }
+};
+
+const resendVerificationEmail = async (req, res) => {
+  try {
+    const { verificationToken } = req.body;
+    if (!verificationToken) {
+      return res.status(400).json({ success: false, message: 'Verification session token is required' });
+    }
+
+    const decoded = verifyTemporaryToken(verificationToken, 'email_verification');
+    if (!decoded) {
+      return res.status(401).json({ success: false, message: 'Session expired' });
+    }
+
+    const user = await User.findById(decoded.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    if (user.isVerified) {
+       return res.status(400).json({ success: false, message: 'User is already verified' });
+    }
+
+    const otp = await otpService.generateAndStoreOTP(user._id, 'email_verification');
+    await otpDeliveryService.deliver(user, otp, 'email_verification');
+
+    res.status(200).json({ success: true, message: 'A new verification code has been sent.' });
+  } catch (error) {
+    if (error.statusCode === 429) {
+      return res.status(429).json({ success: false, message: error.message });
+    }
+    res.status(500).json({ success: false, message: 'Server error while resending verification' });
+  }
+};
+
+const socialAuth = async (req, res) => {
+  try {
+    // In a real app, you would verify the Google/Facebook token against their API here.
+    // For this demonstration, we trust the payload structure passed from the client,
+    // assuming it represents a successfully verified external token payload.
+    const { provider, email, name, socialId, avatar, role } = req.body;
+
+    if (!provider || !email || !socialId) {
+      return res.status(400).json({ success: false, message: 'Incomplete social auth data' });
+    }
+
+    let user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      // Create new user (automatically verified)
+      user = await User.create({
+        name,
+        email,
+        authProvider: provider,
+        socialId,
+        avatar,
+        role: role || 'public',
+        isVerified: true, // Social accounts are pre-verified
+        onboardingCompleted: false, // Must complete onboarding
+      });
+      await auditService.log({ user }, 'social_register', 'User', user._id);
+    } else {
+      // Check if trying to login with social but registered locally
+      if (user.authProvider === 'local') {
+        // We can link the account or throw an error. For now, let's link it.
+        user.authProvider = provider;
+        user.socialId = socialId;
+        user.isVerified = true;
+        await user.save();
+      }
+      if (!user.isActive) {
+        return res.status(403).json({ success: false, message: 'Account has been deactivated' });
+      }
+      await auditService.log({ user }, 'social_login', 'User', user._id);
+    }
+
+    generateToken(res, user._id);
+
+    res.status(200).json({
+      success: true,
+      message: 'Social authentication successful',
+      data: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isVerified: user.isVerified,
+        onboardingCompleted: user.onboardingCompleted,
+        twoFactorEnabled: user.twoFactorEnabled,
+        isActive: user.isActive,
+      },
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error during social authentication' });
+  }
+};
+
+const completeOnboarding = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    // Allow updating profile fields based on what was passed
+    const updatableFields = [
+      'dateOfBirth', 'identificationType', 'identificationNumber', 
+      'rank', 'station', 'jurisdiction', 'specialization', 'department', 'badgeNumber'
+    ];
+
+    updatableFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        user[field] = req.body[field];
+      }
+    });
+
+    if (req.body.address) {
+      user.address = { ...user.address, ...req.body.address };
+    }
+    
+    if (req.body.emergencyContact) {
+      user.emergencyContact = { ...user.emergencyContact, ...req.body.emergencyContact };
+    }
+
+    user.onboardingCompleted = true;
+    await user.save();
+
+    await auditService.log(req, 'onboarding_completed', 'User', user._id);
+
+    res.status(200).json({
+      success: true,
+      message: 'Onboarding completed successfully',
+      data: {
+        ...user.toJSON(),
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error during onboarding' });
+  }
+};
+
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide an email and password',
-      });
+      return res.status(400).json({ success: false, message: 'Please provide an email and password' });
     }
 
     const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
 
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password',
-      });
+      return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
 
     if (!user.isActive) {
-      return res.status(403).json({
-        success: false,
-        message: 'Account has been deactivated — contact admin',
-      });
+      return res.status(403).json({ success: false, message: 'Account has been deactivated — contact admin' });
     }
 
-    if (!user.password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Database Error: Password hash missing for this user.',
-      });
+    if (user.authProvider !== 'local') {
+      return res.status(400).json({ success: false, message: `Please login using your ${user.authProvider} account.` });
     }
 
     const isMatch = await user.matchPassword(password);
-
     if (!isMatch) {
-      return res.status(401).json({
+      return res.status(401).json({ success: false, message: 'Invalid email or password' });
+    }
+
+    if (!user.isVerified) {
+      // Resend verification automatically
+      const otp = await otpService.generateAndStoreOTP(user._id, 'email_verification');
+      await otpDeliveryService.deliver(user, otp, 'email_verification');
+      const verificationToken = generateTemporaryToken(user._id, 'email_verification');
+      return res.status(403).json({
         success: false,
-        message: 'Invalid email or password',
+        verificationRequired: true,
+        verificationToken,
+        message: 'Email not verified. A new verification code has been sent.'
       });
     }
 
     if (user.twoFactorEnabled) {
-      const otp = await otpService.generateAndStoreOTP(user._id);
-      await otpDeliveryService.deliver(user, otp);
-
-      const twoFactorToken = generateTwoFactorToken(user._id);
-
+      const otp = await otpService.generateAndStoreOTP(user._id, '2fa');
+      await otpDeliveryService.deliver(user, otp, '2fa');
+      const twoFactorToken = generateTemporaryToken(user._id, '2fa');
       return res.status(200).json({
         success: true,
         twoFactorRequired: true,
@@ -134,7 +317,6 @@ const login = async (req, res) => {
     }
 
     generateToken(res, user._id);
-
     req.user = user;
     await auditService.log(req, 'login', 'User', user._id);
 
@@ -147,6 +329,7 @@ const login = async (req, res) => {
         email: user.email,
         role: user.role,
         isVerified: user.isVerified,
+        onboardingCompleted: user.onboardingCompleted,
         twoFactorEnabled: user.twoFactorEnabled,
         isActive: user.isActive,
       },
@@ -155,11 +338,7 @@ const login = async (req, res) => {
     if (error.statusCode === 429) {
       return res.status(429).json({ success: false, message: error.message });
     }
-    res.status(500).json({
-      success: false,
-      message: 'Server error during login',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-    });
+    res.status(500).json({ success: false, message: 'Server error during login' });
   }
 };
 
@@ -174,7 +353,7 @@ const verifyTwoFactor = async (req, res) => {
       });
     }
 
-    const decoded = verifyTwoFactorToken(twoFactorToken);
+    const decoded = verifyTemporaryToken(twoFactorToken, '2fa');
     if (!decoded) {
       return res.status(401).json({
         success: false,
@@ -182,7 +361,7 @@ const verifyTwoFactor = async (req, res) => {
       });
     }
 
-    const result = await otpService.verifyOTP(decoded.id, otp);
+    const result = await otpService.verifyOTP(decoded.id, otp, '2fa');
 
     if (!result.valid) {
       return res.status(401).json({
@@ -214,6 +393,7 @@ const verifyTwoFactor = async (req, res) => {
         role: user.role,
         isVerified: user.isVerified,
         twoFactorEnabled: user.twoFactorEnabled,
+        onboardingCompleted: user.onboardingCompleted,
         isActive: user.isActive,
       },
     });
@@ -236,7 +416,7 @@ const resendOTP = async (req, res) => {
       });
     }
 
-    const decoded = verifyTwoFactorToken(twoFactorToken);
+    const decoded = verifyTemporaryToken(twoFactorToken, '2fa');
     if (!decoded) {
       return res.status(401).json({
         success: false,
@@ -249,8 +429,8 @@ const resendOTP = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const otp = await otpService.generateAndStoreOTP(user._id);
-    await otpDeliveryService.deliver(user, otp);
+    const otp = await otpService.generateAndStoreOTP(user._id, '2fa');
+    await otpDeliveryService.deliver(user, otp, '2fa');
 
     res.status(200).json({
       success: true,
@@ -278,8 +458,8 @@ const enableTwoFactor = async (req, res) => {
       });
     }
 
-    const otp = await otpService.generateAndStoreOTP(user._id);
-    await otpDeliveryService.deliver(user, otp);
+    const otp = await otpService.generateAndStoreOTP(user._id, '2fa');
+    await otpDeliveryService.deliver(user, otp, '2fa');
 
     res.status(200).json({
       success: true,
@@ -304,7 +484,7 @@ const confirmEnableTwoFactor = async (req, res) => {
       return res.status(400).json({ success: false, message: 'OTP is required' });
     }
 
-    const result = await otpService.verifyOTP(req.user._id, otp);
+    const result = await otpService.verifyOTP(req.user._id, otp, '2fa');
 
     if (!result.valid) {
       return res.status(401).json({ success: false, message: result.reason });
@@ -337,8 +517,8 @@ const disableTwoFactor = async (req, res) => {
       });
     }
 
-    const otp = await otpService.generateAndStoreOTP(user._id);
-    await otpDeliveryService.deliver(user, otp);
+    const otp = await otpService.generateAndStoreOTP(user._id, '2fa');
+    await otpDeliveryService.deliver(user, otp, '2fa');
 
     res.status(200).json({
       success: true,
@@ -363,7 +543,7 @@ const confirmDisableTwoFactor = async (req, res) => {
       return res.status(400).json({ success: false, message: 'OTP is required' });
     }
 
-    const result = await otpService.verifyOTP(req.user._id, otp);
+    const result = await otpService.verifyOTP(req.user._id, otp, '2fa');
 
     if (!result.valid) {
       return res.status(401).json({ success: false, message: result.reason });
@@ -410,6 +590,10 @@ const logout = async (req, res) => {
 
 module.exports = {
   register,
+  verifyEmail,
+  resendVerificationEmail,
+  socialAuth,
+  completeOnboarding,
   login,
   verifyTwoFactor,
   resendOTP,

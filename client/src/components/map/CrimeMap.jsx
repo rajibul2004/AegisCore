@@ -85,10 +85,10 @@ const CrimeMap = ({ height = "400px", theme = "light" }) => {
     
   const defaultZoom = locations.length > 0 ? 12 : 5;
 
-  // Premium Map Tiles (CartoDB)
+  // Premium Map Tiles (Esri - No API Key Required)
   const tileUrl = theme === 'dark' 
-    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+    ? "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+    : "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}";
 
   return (
     <div className="relative w-full h-full z-0">
@@ -101,7 +101,7 @@ const CrimeMap = ({ height = "400px", theme = "light" }) => {
       >
         <TileLayer
           key={theme} // Force re-render when theme changes
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
           url={tileUrl}
         />
         

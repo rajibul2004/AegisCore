@@ -12,14 +12,18 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     // Only connect if the user is authenticated
     if (user && !socket) {
-      const newSocket = io('http://localhost:5000', {
+      const socketUrl = import.meta.env.VITE_API_URL 
+        ? import.meta.env.VITE_API_URL.replace('/api', '') 
+        : (import.meta.env.PROD ? '/' : 'http://localhost:5000');
+        
+      const newSocket = io(socketUrl, {
         withCredentials: true,
       });
 
       setSocket(newSocket);
 
       newSocket.on('connect', () => {
-        console.log('Socket connected:', newSocket.id);
+        
       });
 
       newSocket.on('user_status_change', ({ userId, status }) => {

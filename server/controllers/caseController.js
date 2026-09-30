@@ -70,32 +70,41 @@ const getCases = async (req, res) => {
     const startIndex = (page - 1) * limit;
 
     let query = {};
+    let andConditions = [];
 
-    // Filters for Police/Admin
-    if (req.query.status) query.status = req.query.status;
-    if (req.query.priority) query.priority = req.query.priority;
-    if (req.query.assignedOfficer) query.assignedOfficer = req.query.assignedOfficer;
+    // Filters for Police/Admin from UI
+    if (req.query.status) andConditions.push({ status: req.query.status });
+    if (req.query.priority) andConditions.push({ priority: req.query.priority });
+    if (req.query.assignedOfficer) andConditions.push({ assignedOfficer: req.query.assignedOfficer });
     if (req.query.caseNumber) {
-      query.caseNumber = { $regex: req.query.caseNumber, $options: 'i' };
+      andConditions.push({ caseNumber: { $regex: req.query.caseNumber, $options: 'i' } });
     }
-    
+
+    // Role-based Restrictions
+    if (req.user.role === 'police') {
+      andConditions.push({ assignedOfficer: req.user._id });
+    }
+
     // Text search
     if (req.query.search) {
-      query.$or = [
-        { title: { $regex: req.query.search, $options: 'i' } },
-        { description: { $regex: req.query.search, $options: 'i' } }
-      ];
+      andConditions.push({
+        $or: [
+          { title: { $regex: req.query.search, $options: 'i' } },
+          { description: { $regex: req.query.search, $options: 'i' } }
+        ]
+      });
     }
     
     // Date ranges
     if (req.query.startDate || req.query.endDate) {
-      query.createdAt = {};
-      if (req.query.startDate) query.createdAt.$gte = new Date(req.query.startDate);
+      let dateQuery = {};
+      if (req.query.startDate) dateQuery.$gte = new Date(req.query.startDate);
       if (req.query.endDate) {
         const end = new Date(req.query.endDate);
         end.setHours(23, 59, 59, 999);
-        query.createdAt.$lte = end;
+        dateQuery.$lte = end;
       }
+      andConditions.push({ createdAt: dateQuery });
     }
 
     // Advanced relational query: Filter cases by FIR Number (requires lookup first)
@@ -104,10 +113,7 @@ const getCases = async (req, res) => {
         firNumber: { $regex: req.query.firNumber, $options: 'i' } 
       }).select('_id');
       const matchedFirIds = matchedFIRs.map(f => f._id);
-      
-      // If we already had FIR logic (e.g. public user), intersect them.
-      // Otherwise, just set it.
-      query.fir = { $in: matchedFirIds };
+      andConditions.push({ fir: { $in: matchedFirIds } });
     }
 
     // If public user, they can ONLY see cases linked to their FIRs
@@ -115,12 +121,12 @@ const getCases = async (req, res) => {
       const userFIRs = await FIR.find({ complainant: req.user._id }).select('_id');
       const userFirIds = userFIRs.map(f => f._id);
       
-      // Intersect with any existing FIR query
-      if (query.fir && query.fir.$in) {
-        query.fir.$in = query.fir.$in.filter(id => userFirIds.some(uid => uid.equals(id)));
-      } else {
-        query.fir = { $in: userFirIds };
-      }
+      // We push this mandatory restriction for public users
+      andConditions.push({ fir: { $in: userFirIds } });
+    }
+
+    if (andConditions.length > 0) {
+      query.$and = andConditions;
     }
 
     const total = await Case.countDocuments(query);

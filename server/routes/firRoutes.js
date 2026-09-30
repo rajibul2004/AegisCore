@@ -15,8 +15,10 @@ const router = express.Router();
 
 router.use(protect);
 
+const upload = require('../middlewares/uploadCloudinary');
+
 router.get('/', getFIRs);
-router.post('/', validateFIR, createFIR);
+router.post('/', upload.array('attachments', 5), validateFIR, createFIR);
 
 router.get('/locations', getFIRLocations);
 

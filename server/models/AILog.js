@@ -24,7 +24,7 @@ const aiLogSchema = new mongoose.Schema(
     },
     modelUsed: {
       type: String,
-      default: 'llama-3.1-8b-instant',
+      default: 'openai/gpt-oss-20b',
     },
     processingTimeMs: {
       type: Number,

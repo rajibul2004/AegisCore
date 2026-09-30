@@ -1,11 +1,13 @@
 import { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { firService } from '../../api/firService';
+import { userService } from '../../api/userService';
+import { aiService } from '../../api/aiService';
 import { AuthContext } from '../../context/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { 
-  ArrowLeft, Calendar, MapPin, User, Shield, 
-  Clock, AlertCircle, Edit, Trash2, Check, Loader2, Save, FileText, Activity
+  ArrowLeft, Calendar, MapPin, User, Shield, Zap,
+  Clock, AlertCircle, Edit, Trash2, Check, Loader2, Save, FileText, Activity, BrainCircuit, Target, X
 } from 'lucide-react';
 
 const FIRDetails = () => {
@@ -21,18 +23,30 @@ const FIRDetails = () => {
   const [updateLoading, setUpdateLoading] = useState(false);
   const [status, setStatus] = useState('');
   const [priority, setPriority] = useState('');
+  const [assignedOfficer, setAssignedOfficer] = useState('');
+  const [policeOfficers, setPoliceOfficers] = useState([]);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState(null);
 
   useEffect(() => {
     const fetchFIRDetails = async () => {
       try {
         setLoading(true);
-        const res = await firService.getFIRById(id);
+        const [res, usersRes] = await Promise.all([
+          firService.getFIRById(id),
+          (user?.role === 'admin' || user?.role === 'police') ? userService.getUsers() : Promise.resolve({ data: [] })
+        ]);
         setFir(res.data);
         setStatus(res.data.status);
         setPriority(res.data.priority);
+        setAssignedOfficer(res.data.assignedOfficer?._id || '');
+        if (usersRes.data) {
+          setPoliceOfficers(usersRes.data.filter(u => u.role === 'police'));
+        }
       } catch (err) {
         setError(err.response?.data?.message || 'Failed to load FIR details');
       } finally {
@@ -40,18 +54,40 @@ const FIRDetails = () => {
       }
     };
     fetchFIRDetails();
-  }, [id]);
+  }, [id, user?.role]);
 
   const handleUpdate = async () => {
     try {
       setUpdateLoading(true);
-      const res = await firService.updateFIR(id, { status, priority });
+      const res = await firService.updateFIR(id, { 
+        status, 
+        priority, 
+        assignedOfficer: assignedOfficer || null 
+      });
       setFir(res.data);
       setIsEditing(false);
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to update FIR');
     } finally {
       setUpdateLoading(false);
+    }
+  };
+
+  const runAiAnalysis = async () => {
+    try {
+      setShowAiModal(true);
+      setAiAnalysis(null);
+      // We pass the FIR data formatted as caseData
+      const res = await aiService.analyzeCase({
+        caseNumber: fir.firNumber,
+        title: fir.title,
+        description: fir.description,
+        priority: fir.priority,
+        status: fir.status
+      });
+      setAiAnalysis(res.data.analysis);
+    } catch (err) {
+      setAiAnalysis('ERROR: ' + (err.response?.data?.message || 'AI Analysis Failed'));
     }
   };
 
@@ -137,6 +173,14 @@ const FIRDetails = () => {
           </Link>
 
           <div className="flex items-center gap-3 w-full sm:w-auto">
+            {user?.role === 'admin' && (
+              <button 
+                onClick={runAiAnalysis}
+                className="flex items-center justify-center px-4 py-2.5 bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-500/20 border border-indigo-500/20 rounded-xl font-bold transition-all shadow-[0_0_15px_-3px_rgba(99,102,241,0.2)] hover:scale-105"
+              >
+                <Zap className="w-4 h-4 mr-2" /> Groq AI
+              </button>
+            )}
             {canEdit && !isEditing && (
               <button 
                 onClick={() => setIsEditing(true)}
@@ -194,7 +238,7 @@ const FIRDetails = () => {
               <h3 className="text-xl font-bold text-gray-900 dark:text-white">Update Case Status</h3>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div className={`grid grid-cols-1 gap-6 mb-6 ${user?.role === 'admin' ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-600 dark:text-gray-400 ml-1">Lifecycle Stage</label>
                 <select 
@@ -222,6 +266,21 @@ const FIRDetails = () => {
                   <option value="critical">Critical Emergency</option>
                 </select>
               </div>
+              {user?.role === 'admin' && (
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-600 dark:text-gray-400 ml-1">Assign Officer</label>
+                  <select 
+                    value={assignedOfficer} 
+                    onChange={(e) => setAssignedOfficer(e.target.value)}
+                    className="w-full bg-white dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  >
+                    <option value="">Unassigned</option>
+                    {policeOfficers.map(officer => (
+                      <option key={officer._id} value={officer._id}>{officer.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
             
             <div className="flex justify-end gap-3 pt-4 border-t border-blue-200 dark:border-gray-800">
@@ -266,6 +325,37 @@ const FIRDetails = () => {
                     {fir.description}
                   </div>
                 </div>
+
+                {/* Attachments Section */}
+                {fir.attachments && fir.attachments.length > 0 && (
+                  <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-800">
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4 uppercase tracking-wider flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-indigo-500" /> Evidence & Attachments
+                    </h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      {fir.attachments.map((attachment, idx) => (
+                        <a 
+                          key={idx}
+                          href={attachment.url} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800/50 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl transition-colors group"
+                        >
+                          {attachment.resourceType === 'image' ? (
+                            <img src={attachment.url} alt={attachment.originalName || 'Attachment'} className="w-16 h-16 object-cover rounded-lg mb-3 shadow-sm group-hover:scale-105 transition-transform" />
+                          ) : (
+                            <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-lg flex items-center justify-center mb-3 shadow-sm group-hover:scale-105 transition-transform">
+                              <FileText className="w-8 h-8" />
+                            </div>
+                          )}
+                          <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 text-center truncate w-full px-2" title={attachment.originalName}>
+                            {attachment.originalName || `Attachment ${idx + 1}`}
+                          </span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -372,6 +462,48 @@ const FIRDetails = () => {
           </div>
         </div>
       </div>
+
+      {/* AI Modal Overlay */}
+      {showAiModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-slate-900 rounded-[2.5rem] border border-indigo-500/30 shadow-[0_0_50px_-12px_rgba(99,102,241,0.5)] w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col relative animate-in zoom-in-95 duration-300">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+            
+            <div className="p-6 border-b border-indigo-500/20 flex justify-between items-center bg-slate-900/80 backdrop-blur-md relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-500/20 text-indigo-400 rounded-xl">
+                  <BrainCircuit className="w-6 h-6" />
+                </div>
+                <h3 className="text-xl font-black text-white">Groq AI Analysis</h3>
+              </div>
+              <button 
+                onClick={() => setShowAiModal(false)}
+                className="p-2 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-8 overflow-y-auto relative z-10">
+              {!aiAnalysis ? (
+                <div className="flex flex-col items-center justify-center py-12 text-indigo-400">
+                  <Loader2 className="w-12 h-12 animate-spin mb-4" />
+                  <p className="font-bold animate-pulse">Running Neural Inference...</p>
+                </div>
+              ) : (
+                <div className="prose prose-invert max-w-none">
+                  <h4 className="text-sm font-bold text-indigo-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <Target className="w-4 h-4" /> Tactical Intelligence Output
+                  </h4>
+                  <div className="bg-black/20 p-6 rounded-2xl border border-indigo-500/10 text-gray-200 font-medium leading-relaxed whitespace-pre-wrap">
+                    {aiAnalysis}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 };

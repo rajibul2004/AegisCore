@@ -14,7 +14,8 @@ const CreateFIR = () => {
     description: '',
     incidentDate: '',
     locationAddress: '',
-    isAnonymous: false
+    isAnonymous: false,
+    attachments: []
   });
 
   const handleChange = (e) => {
@@ -25,19 +26,41 @@ const CreateFIR = () => {
     }));
   };
 
+  const handleFileChange = (e) => {
+    setFormData(prev => ({
+      ...prev,
+      attachments: Array.from(e.target.files)
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
     try {
-      const payload = {
-        title: formData.title,
-        description: formData.description,
-        incidentDate: formData.incidentDate,
-        location: { address: formData.locationAddress },
-        isAnonymous: formData.isAnonymous
-      };
+      let payload;
+      
+      if (formData.attachments && formData.attachments.length > 0) {
+        payload = new FormData();
+        payload.append('title', formData.title);
+        payload.append('description', formData.description);
+        payload.append('incidentDate', formData.incidentDate);
+        payload.append('location', JSON.stringify({ address: formData.locationAddress }));
+        payload.append('isAnonymous', formData.isAnonymous);
+        
+        formData.attachments.forEach(file => {
+          payload.append('attachments', file);
+        });
+      } else {
+        payload = {
+          title: formData.title,
+          description: formData.description,
+          incidentDate: formData.incidentDate,
+          location: { address: formData.locationAddress },
+          isAnonymous: formData.isAnonymous
+        };
+      }
 
       const res = await firService.createFIR(payload);
       navigate(`/firs/${res.data._id}`);
@@ -171,6 +194,23 @@ const CreateFIR = () => {
                   minLength={20}
                 ></textarea>
                 <p className="text-xs font-semibold text-gray-500 mt-2 ml-1">Minimum 20 characters required.</p>
+              </div>
+
+              {/* Evidence / Attachments */}
+              <div className="group">
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 tracking-wide">
+                  Evidence / Attachments (Optional)
+                </label>
+                <div className="relative">
+                  <input
+                    type="file"
+                    multiple
+                    onChange={handleFileChange}
+                    accept="image/*,application/pdf,video/mp4"
+                    className="w-full px-4 py-3 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50/50 dark:bg-gray-900/50 text-gray-900 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 dark:file:bg-indigo-500/20 dark:file:text-indigo-400 hover:file:bg-indigo-100 dark:hover:file:bg-indigo-500/30 transition-all cursor-pointer"
+                  />
+                </div>
+                <p className="text-xs font-semibold text-gray-500 mt-2 ml-1">You can upload up to 5 files (Images, PDFs, MP4s). Max size 10MB each.</p>
               </div>
 
               {/* Premium Anonymous Toggle Card */}

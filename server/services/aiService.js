@@ -13,7 +13,7 @@ class AIService {
       apiKey: process.env.GROQ_API_KEY || 'MISSING_API_KEY' // Fallback to prevent immediate crash if env is missing, but will fail gracefully
     });
     // Define the default model for various tasks. Fast/cheap for summaries, big for analysis.
-    this.defaultModel = 'llama-3.1-8b-instant';
+    this.defaultModel = process.env.GROQ_MODEL || 'openai/gpt-oss-20b';
   }
 
   /**
@@ -93,7 +93,7 @@ class AIService {
    * Generic text test for the API
    */
   async testPrompt(userId, userPrompt) {
-    const systemPrompt = "You are CaseIntel, a highly secure AI assistant for law enforcement. Answer the user's prompt politely but concisely. Do not make autonomous decisions or provide tactical instructions.";
+    const systemPrompt = "You are AegisCore, a highly secure AI assistant for law enforcement. Answer the user's prompt politely but concisely. Do not make autonomous decisions or provide tactical instructions.";
     return this._executeAIOperation(userId, 'test_prompt', userPrompt, systemPrompt);
   }
 

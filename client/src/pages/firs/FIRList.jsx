@@ -1,16 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { firService } from '../../api/firService';
+import { AuthContext } from '../../context/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { FileText, Filter, Search, ChevronLeft, ChevronRight, AlertCircle, Plus, Calendar, MapPin, Hash, ShieldCheck, X, Loader2 } from 'lucide-react';
 
 const FIRList = () => {
   const routerLocation = useLocation();
+  const { user } = useContext(AuthContext);
   const isMySubmissions = routerLocation.pathname === '/my-firs';
 
   const [firs, setFirs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // For Admins: 'all' vs 'mine'
+  const [adminViewMode, setAdminViewMode] = useState('all');
   
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -48,6 +53,10 @@ const FIRList = () => {
         search: debouncedSearch
       };
       
+      if (user?.role === 'admin' && adminViewMode === 'mine') {
+        params.mine = true;
+      }
+      
       const res = await firService.getFIRs(params);
       setFirs(res.data);
       setTotalPages(res.pagination.pages);
@@ -61,7 +70,7 @@ const FIRList = () => {
 
   useEffect(() => {
     fetchFIRs();
-  }, [page, debouncedSearch]);
+  }, [page, debouncedSearch, adminViewMode]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -147,6 +156,32 @@ const FIRList = () => {
             </Link>
           </div>
         </div>
+
+        {/* Admin View Mode Toggle */}
+        {user?.role === 'admin' && !isMySubmissions && (
+          <div className="flex bg-gray-100/50 dark:bg-gray-800/50 p-1 rounded-xl w-max mb-6 border border-gray-200 dark:border-gray-700/50">
+            <button
+              onClick={() => setAdminViewMode('all')}
+              className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${
+                adminViewMode === 'all'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+              }`}
+            >
+              All FIRs
+            </button>
+            <button
+              onClick={() => setAdminViewMode('mine')}
+              className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${
+                adminViewMode === 'mine'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+              }`}
+            >
+              My FIRs
+            </button>
+          </div>
+        )}
 
         {/* Global Search Bar (Quick Search) */}
         <div className="mb-6 group">
@@ -259,57 +294,76 @@ const FIRList = () => {
         ) : (
           <div className="bg-white dark:bg-[#0A0A0B] rounded-[2rem] border border-gray-100 dark:border-white/5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] overflow-hidden relative">
             <div className="h-1 w-full bg-gradient-to-r from-indigo-500 via-cyan-500 to-purple-500"></div>
-            <div className="overflow-x-auto p-4 sm:p-6">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="text-[10px] uppercase font-black text-gray-400 dark:text-gray-500 tracking-widest border-b border-gray-100 dark:border-gray-800">
-                    <th className="pb-4 pl-4 font-black">FIR Details</th>
-                    <th className="pb-4 font-black hidden sm:table-cell">Temporal & Spatial Data</th>
-                    <th className="pb-4 font-black">Status</th>
-                    <th className="pb-4 pr-4 font-black text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50 dark:divide-white/[0.02]">
-                  {firs.map((fir) => (
-                    <tr key={fir._id} className="group hover:bg-gray-50/50 dark:hover:bg-gray-900/30 transition-colors">
-                      <td className="py-5 pl-4 align-top">
-                        <div className="flex items-start">
-                          <div className="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg mr-4 mt-0.5 shadow-sm group-hover:scale-105 transition-transform">
-                            <FileText className="w-5 h-5 text-indigo-600 dark:text-indigo-400" strokeWidth={1.5} />
-                          </div>
-                          <div>
-                            <p className="font-bold text-gray-900 dark:text-white font-mono text-sm tracking-tight mb-1">{fir.firNumber}</p>
-                            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1 leading-snug line-clamp-2 max-w-sm">{fir.title}</p>
-                          </div>
+            <div className="flex flex-col divide-y divide-gray-50 dark:divide-white/[0.02]">
+              {/* Header (Hidden on Mobile) */}
+              <div className="hidden sm:grid sm:grid-cols-12 gap-4 px-6 py-4 text-[10px] uppercase font-black text-gray-400 dark:text-gray-500 tracking-widest border-b border-gray-100 dark:border-gray-800">
+                <div className="col-span-5">FIR Details</div>
+                <div className="col-span-4">Temporal & Spatial Data</div>
+                <div className="col-span-2">Status</div>
+                <div className="col-span-1 text-right">Action</div>
+              </div>
+
+              {/* Rows */}
+              {firs.map(fir => (
+                <div key={fir._id} className="flex flex-col sm:grid sm:grid-cols-12 gap-4 px-4 sm:px-6 py-5 group hover:bg-gray-50/50 dark:hover:bg-gray-900/30 transition-colors">
+                  
+                  {/* FIR Info Column */}
+                  <div className="col-span-5 flex items-start">
+                    <div className="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg mr-4 mt-0.5 shadow-sm group-hover:scale-105 transition-transform">
+                      <FileText className="w-5 h-5 text-indigo-600 dark:text-indigo-400" strokeWidth={1.5} />
+                    </div>
+                    <div className="w-full">
+                      <div className="flex justify-between sm:block mb-1">
+                        <p className="font-bold text-gray-900 dark:text-white font-mono text-sm tracking-tight">{fir.firNumber}</p>
+                        {/* Status badge on mobile right next to FIR number */}
+                        <div className="sm:hidden">{getStatusBadge(fir.status)}</div>
+                      </div>
+                      <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 sm:mb-1 leading-snug line-clamp-2 max-w-sm">{fir.title}</p>
+                      
+                      {/* Mobile-only Spatial/Temporal Data */}
+                      <div className="sm:hidden flex flex-col space-y-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-800/50">
+                        <div className="flex items-center text-xs font-medium text-gray-600 dark:text-gray-400">
+                          <Calendar className="w-3.5 h-3.5 mr-2 opacity-60" strokeWidth={2} />
+                          {new Date(fir.incidentDate).toLocaleDateString()}
                         </div>
-                      </td>
-                      <td className="py-5 align-top hidden sm:table-cell">
-                        <div className="space-y-2">
-                          <div className="flex items-center text-sm font-medium text-gray-600 dark:text-gray-400">
-                            <Calendar className="w-4 h-4 mr-2 opacity-50" strokeWidth={2} />
-                            {new Date(fir.incidentDate).toLocaleDateString()}
-                          </div>
-                          <div className="flex items-start text-sm font-medium text-gray-600 dark:text-gray-400">
-                            <MapPin className="w-4 h-4 mr-2 opacity-50 flex-shrink-0 mt-0.5" strokeWidth={2} />
-                            <span className="line-clamp-2 max-w-xs leading-tight">{fir.location?.address}</span>
-                          </div>
+                        <div className="flex items-start text-xs font-medium text-gray-600 dark:text-gray-400">
+                          <MapPin className="w-3.5 h-3.5 mr-2 opacity-60 flex-shrink-0 mt-0.5" strokeWidth={2} />
+                          <span className="line-clamp-2 leading-tight">{fir.location?.address}</span>
                         </div>
-                      </td>
-                      <td className="py-5 align-top">
-                        {getStatusBadge(fir.status)}
-                      </td>
-                      <td className="py-5 pr-4 align-top text-right">
-                        <Link 
-                          to={`/firs/${fir._id}`}
-                          className="inline-flex items-center text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 px-4 py-2 rounded-xl transition-all hover:bg-indigo-100 dark:hover:bg-indigo-900/50"
-                        >
-                          Open Dossier
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Desktop Spatial/Temporal Column */}
+                  <div className="hidden sm:block col-span-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center text-sm font-medium text-gray-600 dark:text-gray-400">
+                        <Calendar className="w-4 h-4 mr-2 opacity-50" strokeWidth={2} />
+                        {new Date(fir.incidentDate).toLocaleDateString()}
+                      </div>
+                      <div className="flex items-start text-sm font-medium text-gray-600 dark:text-gray-400">
+                        <MapPin className="w-4 h-4 mr-2 opacity-50 flex-shrink-0 mt-0.5" strokeWidth={2} />
+                        <span className="line-clamp-2 max-w-xs leading-tight">{fir.location?.address}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Desktop Status Column */}
+                  <div className="hidden sm:block col-span-2">
+                    {getStatusBadge(fir.status)}
+                  </div>
+
+                  {/* Action Button */}
+                  <div className="col-span-1 flex sm:block justify-end items-center mt-3 sm:mt-0 sm:text-right">
+                    <Link 
+                      to={`/firs/${fir._id}`}
+                      className="inline-flex items-center w-full sm:w-auto justify-center text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 px-4 py-2.5 rounded-xl transition-all hover:bg-indigo-100 dark:hover:bg-indigo-900/50"
+                    >
+                      Open Dossier
+                    </Link>
+                  </div>
+                </div>
+              ))}
             </div>
             
             {/* Premium Pagination */}

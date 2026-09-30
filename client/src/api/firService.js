@@ -1,18 +1,15 @@
 import api from './axios';
 
 export const firService = {
-  getFIRs: async (page = 1, limit = 10, filters = {}) => {
-    let url = `/firs?page=${page}&limit=${limit}`;
+  getFIRs: async function (params = {}) {
+    let finalParams = params;
+    if (typeof params === 'number') {
+      finalParams = arguments[2] || {};
+      finalParams.page = arguments[0];
+      finalParams.limit = arguments[1] || 10;
+    }
     
-    if (filters.status) url += `&status=${filters.status}`;
-    if (filters.priority) url += `&priority=${filters.priority}`;
-    if (filters.search) url += `&search=${filters.search}`;
-    if (filters.firNumber) url += `&firNumber=${filters.firNumber}`;
-    if (filters.location) url += `&location=${filters.location}`;
-    if (filters.startDate) url += `&startDate=${filters.startDate}`;
-    if (filters.endDate) url += `&endDate=${filters.endDate}`;
-    
-    const response = await api.get(url);
+    const response = await api.get('/firs', { params: finalParams });
     return response.data;
   },
 
@@ -22,9 +19,7 @@ export const firService = {
   },
 
   createFIR: async (firData) => {
-    console.log('Creating FIR with data:', firData); // Debugging log
     const response = await api.post('/firs', firData);
-    console.log('FIR created:', response.data); // Debugging log
     return response.data;
   },
 

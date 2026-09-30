@@ -232,106 +232,158 @@ const CaseList = () => {
           </div>
         ) : (
           <div className="bg-white/50 dark:bg-gray-900/40 backdrop-blur-2xl rounded-[2rem] border border-gray-100 dark:border-white/5 shadow-xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50/50 dark:bg-gray-950/50 text-[10px] uppercase font-black text-gray-400 dark:text-gray-500 tracking-widest border-b border-gray-100 dark:border-gray-800">
-                    <th className="p-4 pl-6">Case Identifier</th>
-                    <th className="p-4">Lead Officer</th>
-                    <th className="p-4">Status & Priority</th>
-                    <th className="p-4 pr-6 text-right">Actions & AI</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50 dark:divide-white/[0.02]">
-                  {cases.map((c) => {
-                    const statusCfg = getStatusConfig(c.status);
-                    const priorityCfg = getPriorityConfig(c.priority);
-                    const isUpdating = updatingCaseId === c._id;
-                    const isAnalyzing = analyzingCaseId === c._id;
+            <div className="flex flex-col divide-y divide-gray-50 dark:divide-white/[0.02]">
+              {/* Header (Hidden on Mobile) */}
+              <div className="hidden sm:grid sm:grid-cols-12 gap-4 px-6 py-4 bg-gray-50/50 dark:bg-gray-950/50 text-[10px] uppercase font-black text-gray-400 dark:text-gray-500 tracking-widest border-b border-gray-100 dark:border-gray-800">
+                <div className="col-span-4 pl-2">Case Identifier</div>
+                <div className="col-span-3">Lead Officer</div>
+                <div className="col-span-3">Status & Priority</div>
+                <div className="col-span-2 text-right pr-2">Actions & AI</div>
+              </div>
+
+              {/* Rows */}
+              {cases.map((c) => {
+                const statusCfg = getStatusConfig(c.status);
+                const priorityCfg = getPriorityConfig(c.priority);
+                const isUpdating = updatingCaseId === c._id;
+                const isAnalyzing = analyzingCaseId === c._id;
+                
+                return (
+                  <div key={c._id} className={`flex flex-col sm:grid sm:grid-cols-12 gap-4 px-4 sm:px-6 py-5 group hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors ${isUpdating ? 'opacity-50 pointer-events-none' : ''}`}>
                     
-                    return (
-                      <tr key={c._id} className={`group hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors ${isUpdating ? 'opacity-50 pointer-events-none' : ''}`}>
-                        <td className="p-4 pl-6 align-middle">
-                          <Link to={`/cases/${c._id}`} className="block hover:underline decoration-indigo-500/30 underline-offset-4">
-                            <p className="font-black text-gray-900 dark:text-white text-lg">{c.caseNumber}</p>
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate max-w-[250px]">{c.title}</p>
-                          </Link>
-                        </td>
-                        <td className="p-4 align-middle">
-                          {canEdit ? (
-                            <div className="relative">
-                              <select 
-                                value={c.assignedOfficer?._id || ''} 
-                                onChange={(e) => quickUpdateCase(c._id, { assignedOfficer: e.target.value })}
-                                className="w-full sm:w-48 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-700 text-sm font-bold text-gray-700 dark:text-gray-300 rounded-xl px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all appearance-none cursor-pointer"
-                              >
-                                <option value="">Unassigned</option>
-                                {policeOfficers.map(officer => (
-                                  <option key={officer._id} value={officer._id}>{officer.name}</option>
-                                ))}
-                              </select>
-                              <Shield className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    {/* Case Identifier Block */}
+                    <div className="col-span-4 flex flex-col justify-center">
+                      <div className="flex justify-between sm:block mb-1">
+                        <Link to={`/cases/${c._id}`} className="block hover:underline decoration-indigo-500/30 underline-offset-4">
+                          <p className="font-black text-gray-900 dark:text-white text-lg">{c.caseNumber}</p>
+                        </Link>
+                        
+                        {/* Mobile-only Status Badges */}
+                        <div className="sm:hidden flex items-center gap-1.5">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold uppercase border ${priorityCfg.color} ${priorityCfg.border}`}>
+                            {c.priority}
+                          </span>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold uppercase ${statusCfg.bg} ${statusCfg.color}`}>
+                            {c.status.replace('_', ' ')}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded text-[10px] font-bold font-mono uppercase tracking-wider border border-gray-200 dark:border-gray-700">
+                          {c.fir?.firNumber || 'NO FIR'}
+                        </span>
+                      </div>
+                      
+                      <Link to={`/cases/${c._id}`} className="block hover:underline decoration-indigo-500/30 underline-offset-4 mb-2 sm:mb-0">
+                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400 line-clamp-2 max-w-sm">{c.title}</p>
+                      </Link>
+
+                      {/* Mobile-only Lead Officer */}
+                      <div className="sm:hidden mt-3 pt-3 border-t border-gray-100 dark:border-gray-800/50">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Lead Officer</p>
+                        {canEdit ? (
+                          <div className="relative">
+                            <select 
+                              value={c.assignedOfficer?._id || ''} 
+                              onChange={(e) => quickUpdateCase(c._id, { assignedOfficer: e.target.value })}
+                              className="w-full bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 text-sm font-bold text-gray-700 dark:text-gray-300 rounded-xl px-3 py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all appearance-none cursor-pointer"
+                            >
+                              <option value="">Unassigned</option>
+                              {policeOfficers.map(officer => (
+                                <option key={officer._id} value={officer._id}>{officer.name}</option>
+                              ))}
+                            </select>
+                            <Shield className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-bold shadow-[inset_0_0_0_1px_rgba(99,102,241,0.2)]">
+                              {c.assignedOfficer ? c.assignedOfficer.name.charAt(0).toUpperCase() : <User className="w-4 h-4" />}
                             </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-bold">
-                                {c.assignedOfficer ? c.assignedOfficer.name.charAt(0).toUpperCase() : <User className="w-4 h-4" />}
-                              </div>
-                              <span className="font-bold text-gray-700 dark:text-gray-300 text-sm">
-                                {c.assignedOfficer ? c.assignedOfficer.name : 'Unassigned'}
-                              </span>
-                            </div>
-                          )}
-                        </td>
-                        <td className="p-4 align-middle">
-                          <div className="flex flex-col gap-2">
-                            {canEdit ? (
-                              <select 
-                                value={c.status}
-                                onChange={(e) => quickUpdateCase(c._id, { status: e.target.value })}
-                                className={`text-xs font-bold uppercase rounded-lg px-2 py-1 outline-none border cursor-pointer ${statusCfg.color} ${statusCfg.bg} border-transparent hover:border-current transition-colors`}
-                              >
-                                <option value="pending">Pending</option>
-                                <option value="registered">Registered</option>
-                                <option value="under_investigation">Active Investigation</option>
-                                <option value="solved">Solved</option>
-                                <option value="closed">Closed</option>
-                              </select>
-                            ) : (
-                              <span className={`inline-flex items-center w-max px-2.5 py-1 rounded-lg text-xs font-bold uppercase ${statusCfg.bg} ${statusCfg.color}`}>
-                                {c.status.replace('_', ' ')}
-                              </span>
-                            )}
-                            <span className={`inline-flex items-center w-max px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${priorityCfg.color} ${priorityCfg.border}`}>
-                              {c.priority} Priority
+                            <span className="font-bold text-gray-700 dark:text-gray-300 text-sm">
+                              {c.assignedOfficer ? c.assignedOfficer.name : 'Unassigned'}
                             </span>
                           </div>
-                        </td>
-                        <td className="p-4 pr-6 align-middle text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            {canEdit && (
-                              <button 
-                                onClick={() => runInlineAiAnalysis(c)}
-                                disabled={isAnalyzing}
-                                title="Run Groq AI Analysis"
-                                className="p-2.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 rounded-xl transition-all hover:scale-110 hover:shadow-[0_0_15px_-3px_rgba(99,102,241,0.4)]"
-                              >
-                                {isAnalyzing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
-                              </button>
-                            )}
-                            <Link 
-                              to={`/cases/${c._id}`}
-                              className="px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white text-sm font-bold rounded-xl transition-colors inline-block"
-                            >
-                              Open
-                            </Link>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Desktop Lead Officer */}
+                    <div className="hidden sm:flex col-span-3 items-center">
+                      {canEdit ? (
+                        <div className="relative w-full pr-4">
+                          <select 
+                            value={c.assignedOfficer?._id || ''} 
+                            onChange={(e) => quickUpdateCase(c._id, { assignedOfficer: e.target.value })}
+                            className="w-full bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-700 text-sm font-bold text-gray-700 dark:text-gray-300 rounded-xl px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all appearance-none cursor-pointer"
+                          >
+                            <option value="">Unassigned</option>
+                            {policeOfficers.map(officer => (
+                              <option key={officer._id} value={officer._id}>{officer.name}</option>
+                            ))}
+                          </select>
+                          <Shield className="w-4 h-4 text-gray-400 absolute right-7 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-bold">
+                            {c.assignedOfficer ? c.assignedOfficer.name.charAt(0).toUpperCase() : <User className="w-4 h-4" />}
                           </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                          <span className="font-bold text-gray-700 dark:text-gray-300 text-sm">
+                            {c.assignedOfficer ? c.assignedOfficer.name : 'Unassigned'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Desktop Status & Priority */}
+                    <div className="hidden sm:flex col-span-3 flex-col justify-center items-start gap-2">
+                      {canEdit ? (
+                        <select 
+                          value={c.status}
+                          onChange={(e) => quickUpdateCase(c._id, { status: e.target.value })}
+                          className={`text-xs font-bold uppercase rounded-lg px-2 py-1 outline-none border cursor-pointer ${statusCfg.color} ${statusCfg.bg} border-transparent hover:border-current transition-colors appearance-none text-center`}
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="registered">Registered</option>
+                          <option value="under_investigation">Active Investigation</option>
+                          <option value="solved">Solved</option>
+                          <option value="closed">Closed</option>
+                        </select>
+                      ) : (
+                        <span className={`inline-flex items-center w-max px-2.5 py-1 rounded-lg text-xs font-bold uppercase ${statusCfg.bg} ${statusCfg.color}`}>
+                          {c.status.replace('_', ' ')}
+                        </span>
+                      )}
+                      <span className={`inline-flex items-center w-max px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${priorityCfg.color} ${priorityCfg.border}`}>
+                        {c.priority} Priority
+                      </span>
+                    </div>
+
+                    {/* Actions & AI */}
+                    <div className="col-span-2 flex sm:justify-end items-center mt-2 sm:mt-0 gap-2 border-t sm:border-0 border-gray-100 dark:border-gray-800/50 pt-3 sm:pt-0">
+                      {canEdit && (
+                        <button 
+                          onClick={() => runInlineAiAnalysis(c)}
+                          disabled={isAnalyzing}
+                          title="Run Groq AI Analysis"
+                          className="p-2.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 rounded-xl transition-all hover:scale-110 hover:shadow-[0_0_15px_-3px_rgba(99,102,241,0.4)] flex-shrink-0"
+                        >
+                          {isAnalyzing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
+                        </button>
+                      )}
+                      <Link 
+                        to={`/cases/${c._id}`}
+                        className="px-4 py-2.5 w-full sm:w-auto text-center bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white text-sm font-bold rounded-xl transition-colors inline-block"
+                      >
+                        Open Dossier
+                      </Link>
+                    </div>
+
+                  </div>
+                );
+              })}
             </div>
             
             {totalPages > 1 && (

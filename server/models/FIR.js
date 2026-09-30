@@ -58,7 +58,13 @@ const firSchema = new mongoose.Schema(
     isAnonymous: {
       type: Boolean,
       default: false,
-    }
+    },
+    attachments: [{
+      url: String,
+      publicId: String,
+      originalName: String,
+      resourceType: String
+    }]
   },
   {
     timestamps: true,

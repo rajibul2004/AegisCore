@@ -58,7 +58,7 @@ const initializeSocket = (server) => {
     
     // Map the user ID to their socket ID
     connectedUsers.set(userId, socket.id);
-    console.log(`User connected: ${socket.user.name} (Socket ID: ${socket.id})`);
+    
 
     // Broadcast online status to others
     socket.broadcast.emit('user_status_change', {
@@ -69,7 +69,7 @@ const initializeSocket = (server) => {
     // Handle manual disconnect
     socket.on('disconnect', () => {
       connectedUsers.delete(userId);
-      console.log(`User disconnected: ${socket.user.name}`);
+      
       
       // Broadcast offline status
       io.emit('user_status_change', {
