@@ -21,6 +21,8 @@ const helmet = require('helmet');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+app.set('trust proxy', 1); // Trust Render's Load Balancer for secure cookies
+
 app.use(helmet());
 app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" })); // Important for Cloudinary/Map tiles
 
