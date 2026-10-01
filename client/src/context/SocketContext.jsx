@@ -18,6 +18,9 @@ export const SocketProvider = ({ children }) => {
         
       const newSocket = io(socketUrl, {
         withCredentials: true,
+        auth: {
+          token: localStorage.getItem('token')
+        }
       });
 
       setSocket(newSocket);
