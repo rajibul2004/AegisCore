@@ -37,7 +37,7 @@ const register = async (req, res) => {
         // Update unverified user's details in case they changed them
         user.name = name;
         user.password = password; 
-        user.role = role || 'public';
+        user.role = 'public'; // SECURE: Force public role on registration
         user.authProvider = 'local';
         await user.save();
       }
@@ -46,7 +46,7 @@ const register = async (req, res) => {
         name,
         email,
         password,
-        role: role || 'public',
+        role: 'public', // SECURE: Force public role on registration
         isVerified: false,
         onboardingCompleted: false,
         authProvider: 'local'
@@ -179,7 +179,7 @@ const socialAuth = async (req, res) => {
         authProvider: provider,
         socialId,
         avatar,
-        role: role || 'public',
+        role: 'public', // SECURE: Force public role on registration
         isVerified: true, // Social accounts are pre-verified
         onboardingCompleted: false, // Must complete onboarding
       });

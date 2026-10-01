@@ -8,13 +8,39 @@ const UserManagement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('users'); // 'users' or 'requests'
+  const [roleRequests, setRoleRequests] = useState([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
   
   const [isUpdating, setIsUpdating] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
 
   useEffect(() => {
     fetchUsers();
+    fetchRoleRequests();
   }, []);
+
+  const fetchRoleRequests = async () => {
+    try {
+      setLoadingRequests(true);
+      const res = await userService.getRoleRequests();
+      setRoleRequests(res.data || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingRequests(false);
+    }
+  };
+
+  const handleProcessRequest = async (id, status) => {
+    try {
+      await userService.processRoleRequest(id, status);
+      fetchRoleRequests();
+      fetchUsers();
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -111,6 +137,26 @@ const UserManagement = () => {
           </div>
         </div>
 
+        <div className="flex gap-4 mb-6">
+          <button 
+            onClick={() => setActiveTab('users')}
+            className={`px-6 py-3 rounded-2xl font-bold transition-all ${activeTab === 'users' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'bg-white dark:bg-gray-900 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+          >
+            Personnel Directory
+          </button>
+          <button 
+            onClick={() => setActiveTab('requests')}
+            className={`px-6 py-3 rounded-2xl font-bold transition-all flex items-center gap-2 ${activeTab === 'requests' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'bg-white dark:bg-gray-900 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+          >
+            Access Requests
+            {roleRequests.filter(r => r.status === 'pending').length > 0 && (
+              <span className="bg-rose-500 text-white text-xs px-2 py-0.5 rounded-full">
+                {roleRequests.filter(r => r.status === 'pending').length}
+              </span>
+            )}
+          </button>
+        </div>
+
         {error ? (
           <div className="bg-red-500/10 backdrop-blur-xl border border-red-500/20 p-6 rounded-3xl flex items-center gap-4 text-red-500">
             <AlertCircle className="w-8 h-8 shrink-0" />
@@ -119,8 +165,10 @@ const UserManagement = () => {
         ) : (
           <div className="bg-white/50 dark:bg-gray-900/40 backdrop-blur-2xl rounded-[2rem] border border-gray-100 dark:border-white/5 shadow-xl overflow-hidden">
             
-            <div className="p-6 border-b border-gray-100 dark:border-gray-800 bg-white/30 dark:bg-gray-900/30 flex flex-col sm:flex-row justify-between items-center gap-4">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Active Personnel Directory</h2>
+            {activeTab === 'users' && (
+              <>
+                <div className="p-6 border-b border-gray-100 dark:border-gray-800 bg-white/30 dark:bg-gray-900/30 flex flex-col sm:flex-row justify-between items-center gap-4">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Active Personnel Directory</h2>
               
               <div className="relative w-full sm:w-96">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -225,6 +273,62 @@ const UserManagement = () => {
                 </tbody>
               </table>
             </div>
+            </>
+            )}
+
+            {activeTab === 'requests' && (
+              <div className="p-6">
+                <div className="mb-6 flex justify-between items-center">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Pending Access Requests</h2>
+                </div>
+                {loadingRequests ? (
+                  <div className="flex justify-center p-12"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>
+                ) : roleRequests.length === 0 ? (
+                  <div className="text-center p-12 text-gray-500 dark:text-gray-400 font-medium">No role requests found.</div>
+                ) : (
+                  <div className="grid gap-4">
+                    {roleRequests.map((req) => (
+                      <div key={req._id} className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                        <div>
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className="font-bold text-gray-900 dark:text-white">{req.user?.name}</span>
+                            <span className="text-xs text-gray-500">{req.user?.email}</span>
+                          </div>
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="text-sm text-gray-600 dark:text-gray-300">Requested Role:</span>
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${req.requestedRole === 'admin' ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'}`}>
+                              {req.requestedRole}
+                            </span>
+                            <span className={`px-2 py-1 rounded-md text-xs font-bold uppercase ${req.status === 'pending' ? 'bg-amber-100 text-amber-600' : req.status === 'approved' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                              {req.status}
+                            </span>
+                          </div>
+                          <div className="text-sm bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-800 text-gray-600 dark:text-gray-400">
+                            <strong>Reason/Badge:</strong> {req.reason}
+                          </div>
+                        </div>
+                        {req.status === 'pending' && (
+                          <div className="flex items-center gap-3 w-full md:w-auto">
+                            <button 
+                              onClick={() => handleProcessRequest(req._id, 'approved')}
+                              className="flex-1 md:flex-none px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold rounded-xl transition-colors"
+                            >
+                              Approve
+                            </button>
+                            <button 
+                              onClick={() => handleProcessRequest(req._id, 'rejected')}
+                              className="flex-1 md:flex-none px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-xl transition-colors"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

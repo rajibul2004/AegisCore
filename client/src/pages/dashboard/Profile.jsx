@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import { UserCircle, Mail, MapPin, Shield, Briefcase, Phone, Calendar, CreditCard, Edit3 } from 'lucide-react';
+import RoleRequestCard from '../../components/RoleRequestCard';
 
 const Profile = () => {
   const { user } = useContext(AuthContext);
@@ -146,6 +147,12 @@ const Profile = () => {
             </div>
           )}
 
+          {/* Elevated Access Request (For Public Users) */}
+          {user?.role === 'public' && (
+            <div className="mt-8">
+              <RoleRequestCard />
+            </div>
+          )}
         </div>
       </div>
     </div>

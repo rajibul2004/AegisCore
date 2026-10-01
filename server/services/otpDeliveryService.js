@@ -45,4 +45,31 @@ const deliver = async (user, otp, purpose = '2fa') => {
   }
 };
 
-module.exports = { deliver };
+const sendRoleUpdateEmail = async (user, requestedRole, status) => {
+  const isApproved = status === 'approved';
+  const htmlContent = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+      <h2 style="color: ${isApproved ? '#10B981' : '#EF4444'}; text-align: center;">AegisCore Access Request ${isApproved ? 'Approved' : 'Denied'}</h2>
+      <p style="font-size: 16px; color: #333;">Hello ${user.name},</p>
+      <p style="font-size: 16px; color: #333;">
+        Your request for <strong>${requestedRole.toUpperCase()}</strong> access has been 
+        <strong style="color: ${isApproved ? '#10B981' : '#EF4444'};">${status}</strong>.
+      </p>
+      ${isApproved ? '<p style="font-size: 16px; color: #333;">You can now log in to the system and access your new privileges.</p>' : ''}
+      <p style="font-size: 14px; color: #666; margin-top: 20px;">Thank you for your commitment to AegisCore.</p>
+    </div>
+  `;
+
+  try {
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || '"AegisCore Security" <no-reply@aegiscore.com>',
+      to: user.email,
+      subject: `AegisCore - Access Request ${isApproved ? 'Approved' : 'Denied'}`,
+      html: htmlContent,
+    });
+  } catch (error) {
+    console.error('Error sending role update email:', error);
+  }
+};
+
+module.exports = { deliver, sendRoleUpdateEmail };
