@@ -27,6 +27,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     const response = await api.post('/auth/login', { email, password });
     if (response.data.success && !response.data.twoFactorRequired && !response.data.verificationRequired) {
+      if (response.data.data.token) localStorage.setItem('token', response.data.data.token);
       setUser(response.data.data);
     }
     return response.data;
@@ -35,6 +36,7 @@ export const AuthProvider = ({ children }) => {
   const verifyTwoFactor = async (twoFactorToken, otp) => {
     const response = await api.post('/auth/2fa/verify', { twoFactorToken, otp });
     if (response.data.success) {
+      if (response.data.data.token) localStorage.setItem('token', response.data.data.token);
       setUser(response.data.data);
     }
     return response.data;
@@ -54,6 +56,7 @@ export const AuthProvider = ({ children }) => {
   const verifyEmail = async (verificationToken, otp) => {
     const response = await api.post('/auth/verify-email', { verificationToken, otp });
     if (response.data.success) {
+      if (response.data.data.token) localStorage.setItem('token', response.data.data.token);
       setUser(response.data.data);
     }
     return response.data;
@@ -67,6 +70,7 @@ export const AuthProvider = ({ children }) => {
   const socialLogin = async (provider, email, name, socialId, avatar, role) => {
     const response = await api.post('/auth/social', { provider, email, name, socialId, avatar, role });
     if (response.data.success) {
+      if (response.data.data.token) localStorage.setItem('token', response.data.data.token);
       setUser(response.data.data);
     }
     return response.data;
@@ -82,6 +86,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     await api.post('/auth/logout');
+    localStorage.removeItem('token');
     setUser(null);
   };
 

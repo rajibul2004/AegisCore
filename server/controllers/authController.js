@@ -104,7 +104,7 @@ const verifyEmail = async (req, res) => {
     await user.save();
 
     // Now log them in properly
-    generateToken(res, user._id);
+    const token = generateToken(res, user._id);
     req.user = user;
     await auditService.log(req, 'email_verified_login', 'User', user._id);
 
@@ -119,7 +119,7 @@ const verifyEmail = async (req, res) => {
         isVerified: user.isVerified,
         onboardingCompleted: user.onboardingCompleted,
         twoFactorEnabled: user.twoFactorEnabled,
-        isActive: user.isActive,
+        isActive: user.isActive, token,
       },
     });
   } catch (error) {
@@ -199,7 +199,7 @@ const socialAuth = async (req, res) => {
       await auditService.log({ user }, 'social_login', 'User', user._id);
     }
 
-    generateToken(res, user._id);
+    const token = generateToken(res, user._id);
 
     res.status(200).json({
       success: true,
@@ -212,7 +212,7 @@ const socialAuth = async (req, res) => {
         isVerified: user.isVerified,
         onboardingCompleted: user.onboardingCompleted,
         twoFactorEnabled: user.twoFactorEnabled,
-        isActive: user.isActive,
+        isActive: user.isActive, token,
       },
     });
 
@@ -316,7 +316,7 @@ const login = async (req, res) => {
       });
     }
 
-    generateToken(res, user._id);
+    const token = generateToken(res, user._id);
     req.user = user;
     await auditService.log(req, 'login', 'User', user._id);
 
@@ -331,7 +331,7 @@ const login = async (req, res) => {
         isVerified: user.isVerified,
         onboardingCompleted: user.onboardingCompleted,
         twoFactorEnabled: user.twoFactorEnabled,
-        isActive: user.isActive,
+        isActive: user.isActive, token,
       },
     });
   } catch (error) {
@@ -378,7 +378,7 @@ const verifyTwoFactor = async (req, res) => {
       });
     }
 
-    generateToken(res, user._id);
+    const token = generateToken(res, user._id);
 
     req.user = user;
     await auditService.log(req, 'login_2fa', 'User', user._id);
@@ -394,7 +394,7 @@ const verifyTwoFactor = async (req, res) => {
         isVerified: user.isVerified,
         twoFactorEnabled: user.twoFactorEnabled,
         onboardingCompleted: user.onboardingCompleted,
-        isActive: user.isActive,
+        isActive: user.isActive, token,
       },
     });
   } catch (error) {
