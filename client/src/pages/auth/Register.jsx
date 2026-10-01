@@ -10,7 +10,6 @@ const Register = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [role, setRole] = useState('public');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
@@ -26,7 +25,7 @@ const Register = () => {
     setError('');
     setIsLoading(true);
     try {
-      const res = await register(name, email, password, role);
+      const res = await register(name, email, password, 'public');
       if (res.verificationRequired) {
         navigate('/verify-email', { state: { verificationToken: res.verificationToken } });
       } else {
@@ -45,7 +44,7 @@ const Register = () => {
     try {
       const provider = e.currentTarget.textContent.trim().toLowerCase();
       // Stub payload for demonstration since real OAuth isn't wired up
-      await socialLogin(provider, `${provider}user@example.com`, `Demo ${provider} User`, `social_${Date.now()}`, '', role);
+      await socialLogin(provider, `${provider}user@example.com`, `Demo ${provider} User`, `social_${Date.now()}`, '', 'public');
       navigate('/');
     } catch (err) {
       setError('Social authentication failed');
@@ -169,50 +168,6 @@ const Register = () => {
                 </div>
               </div>
 
-              {/* Modern Role Selection */}
-              <div className="pt-2">
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 tracking-wide">Clearance Level</label>
-                <div className="grid grid-cols-3 gap-3">
-                  {/* Public Role */}
-                  <div
-                    onClick={() => setRole('public')}
-                    className={`cursor-pointer rounded-xl p-3 flex flex-col items-center justify-center text-center transition-all duration-200 border-2 ${
-                      role === 'public'
-                        ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 shadow-md ring-1 ring-indigo-600 ring-offset-2 dark:ring-offset-[#0A0A0B]'
-                        : 'border-transparent bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-                    }`}
-                  >
-                    <Users className={`w-5 h-5 mb-2 ${role === 'public' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`} strokeWidth={2} />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Public</span>
-                  </div>
-
-                  {/* Police Role */}
-                  <div
-                    onClick={() => setRole('police')}
-                    className={`cursor-pointer rounded-xl p-3 flex flex-col items-center justify-center text-center transition-all duration-200 border-2 ${
-                      role === 'police'
-                        ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 shadow-md ring-1 ring-indigo-600 ring-offset-2 dark:ring-offset-[#0A0A0B]'
-                        : 'border-transparent bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-                    }`}
-                  >
-                    <ShieldCheck className={`w-5 h-5 mb-2 ${role === 'police' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`} strokeWidth={2} />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Police</span>
-                  </div>
-
-                  {/* Admin Role */}
-                  <div
-                    onClick={() => setRole('admin')}
-                    className={`cursor-pointer rounded-xl p-3 flex flex-col items-center justify-center text-center transition-all duration-200 border-2 ${
-                      role === 'admin'
-                        ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 shadow-md ring-1 ring-indigo-600 ring-offset-2 dark:ring-offset-[#0A0A0B]'
-                        : 'border-transparent bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-                    }`}
-                  >
-                    <Key className={`w-5 h-5 mb-2 ${role === 'admin' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`} strokeWidth={2} />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Admin</span>
-                  </div>
-                </div>
-              </div>
             </div>
 
             <button
