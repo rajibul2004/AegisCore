@@ -266,12 +266,12 @@ const FIRList = () => {
 
         {/* Data Container */}
         {loading ? (
-          <div className="flex flex-col justify-center items-center h-96 bg-white dark:bg-[#0A0A0B] rounded-[2rem] border border-gray-100 dark:border-white/5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]">
-            <div className="relative">
-              <div className="absolute inset-0 bg-indigo-500 rounded-full blur-xl opacity-20 animate-pulse"></div>
-              <Loader2 className="relative w-10 h-10 animate-spin text-indigo-600 dark:text-indigo-400 mb-4" strokeWidth={2} />
+          <div className="flex flex-col justify-center items-center h-96 bg-white dark:bg-[#0A0A0B] rounded-[2rem] border border-gray-100 dark:border-white/5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] animate-in fade-in duration-500">
+            <div className="relative flex justify-center items-center">
+              <div className="absolute inset-0 bg-indigo-500/20 blur-2xl rounded-full h-24 w-24 animate-pulse"></div>
+              <img src="/favicon.png" alt="Loading" className="h-16 w-16 animate-bounce relative z-10 drop-shadow-2xl opacity-90 mb-4" />
             </div>
-            <p className="text-gray-500 dark:text-gray-400 font-bold tracking-wider uppercase text-xs">Querying Intelligence Database...</p>
+            <p className="text-indigo-500 dark:text-indigo-400 font-bold tracking-wider uppercase text-xs animate-pulse">Querying Intelligence Database...</p>
           </div>
         ) : error ? (
           <div className="bg-red-50 dark:bg-red-900/10 p-10 rounded-[2rem] border border-red-100 dark:border-red-900/30 text-center flex flex-col items-center shadow-sm">

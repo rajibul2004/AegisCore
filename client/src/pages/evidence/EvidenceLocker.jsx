@@ -118,10 +118,10 @@ const EvidenceLocker = () => {
         </div>
 
         {loading ? (
-          <div className="flex justify-center items-center min-h-[40vh]">
+          <div className="flex justify-center items-center min-h-[40vh] animate-in fade-in duration-500">
             <div className="relative flex justify-center items-center">
-              <div className="absolute inset-0 bg-cyan-500/20 blur-xl rounded-full h-16 w-16 animate-pulse"></div>
-              <Loader2 className="w-12 h-12 text-cyan-500 animate-spin relative z-10" />
+              <div className="absolute inset-0 bg-indigo-500/20 blur-2xl rounded-full h-24 w-24 animate-pulse"></div>
+              <img src="/favicon.png" alt="Loading" className="h-16 w-16 animate-bounce relative z-10 drop-shadow-2xl opacity-90" />
             </div>
           </div>
         ) : error ? (

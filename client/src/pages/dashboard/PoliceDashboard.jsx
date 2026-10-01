@@ -28,10 +28,10 @@ const PoliceDashboard = () => {
   }, []);
 
   if (loading) return (
-    <div className="flex justify-center items-center min-h-[60vh]">
+    <div className="flex justify-center items-center min-h-[60vh] animate-in fade-in duration-500">
       <div className="relative flex justify-center items-center">
-        <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full h-16 w-16 animate-pulse"></div>
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600/30 border-t-blue-600 relative z-10"></div>
+        <div className="absolute inset-0 bg-indigo-500/20 blur-2xl rounded-full h-24 w-24 animate-pulse"></div>
+        <img src="/favicon.png" alt="Loading" className="h-16 w-16 animate-bounce relative z-10 drop-shadow-2xl opacity-90" />
       </div>
     </div>
   );

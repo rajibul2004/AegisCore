@@ -8,8 +8,18 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center transition-colors duration-200">
-        <div className="text-xl text-gray-700 dark:text-gray-300">Loading...</div>
+      <div className="min-h-screen bg-gray-50 dark:bg-[#0A0A0B] flex flex-col items-center justify-center transition-colors duration-200">
+        <div className="relative flex items-center justify-center">
+          <div className="absolute inset-0 bg-indigo-500/30 blur-2xl rounded-full h-24 w-24 animate-pulse"></div>
+          <img 
+            src="/favicon.png" 
+            alt="Loading" 
+            className="h-16 w-16 animate-bounce relative z-10 drop-shadow-2xl opacity-90"
+          />
+        </div>
+        <p className="mt-6 text-xs font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest animate-pulse">
+          Authenticating AegisCore...
+        </p>
       </div>
     );
   }
