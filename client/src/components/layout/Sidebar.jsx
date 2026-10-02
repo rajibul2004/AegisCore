@@ -64,7 +64,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         className={`fixed inset-y-0 left-0 z-30 w-72 bg-white dark:bg-[#0A0A0B] border-r border-gray-200/60 dark:border-white/5 transform transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] lg:static lg:translate-x-0 flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         {/* Desktop Logo Header (matches Navbar height & style) */}
-        <div className="hidden lg:flex items-center justify-center h-[72px] border-b border-gray-200/60 dark:border-white/5">
+        <div className="hidden lg:flex items-center justify-center h-[72px] min-h-[72px] shrink-0 border-b border-gray-200/60 dark:border-white/5">
           <img src="/favicon.png" alt="AegisCore Logo" className="h-10 w-auto rounded-xl mr-3 object-contain" />
           <span className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter">
             Aegis<span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-cyan-600 dark:from-indigo-400 dark:to-cyan-400">Core</span>

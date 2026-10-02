@@ -9,7 +9,7 @@ const Navbar = ({ onMenuClick }) => {
   const { user, logout } = useContext(AuthContext);
 
   return (
-    <header className="h-[72px] flex items-center justify-between px-6 bg-white/80 dark:bg-[#0A0A0B]/80 backdrop-blur-xl saturate-150 border-b border-gray-200/60 dark:border-white/5 z-10 sticky top-0 transition-colors duration-300">
+    <header className="h-[72px] min-h-[72px] shrink-0 flex items-center justify-between px-6 bg-white/80 dark:bg-[#0A0A0B]/80 backdrop-blur-xl saturate-150 border-b border-gray-200/60 dark:border-white/5 z-10 sticky top-0 transition-colors duration-300">
       <div className="flex items-center">
         {/* Mobile Menu Toggle */}
         <button 
