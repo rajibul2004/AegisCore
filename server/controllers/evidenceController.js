@@ -76,6 +76,11 @@ const getEvidenceByCase = async (req, res) => {
   try {
     const { caseId } = req.params;
 
+    // Security block: Public users should never see evidence
+    if (req.user.role === 'public') {
+      return res.status(403).json({ success: false, message: 'Access denied. Public users cannot view evidence.' });
+    }
+
     // Security check for Police
     if (req.user.role === 'police') {
       const investigationCase = await Case.findById(caseId);

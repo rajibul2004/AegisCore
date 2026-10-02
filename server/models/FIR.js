@@ -59,6 +59,11 @@ const firSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     attachments: [{
       url: String,
       publicId: String,

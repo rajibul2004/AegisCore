@@ -3,6 +3,26 @@ import { useNavigate, Link } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { ArrowLeft, AlertCircle, Save, Loader2, FileText, Calendar, MapPin, ShieldAlert } from 'lucide-react';
 import { firService } from '../../api/firService';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+
+const mapIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+const LocationMarker = ({ position, setPosition }) => {
+  useMapEvents({
+    click(e) {
+      setPosition({ lat: e.latlng.lat, lng: e.latlng.lng });
+    },
+  });
+  return position === null ? null : <Marker position={[position.lat, position.lng]} icon={mapIcon} />;
+};
 
 const CreateFIR = () => {
   const navigate = useNavigate();
@@ -14,6 +34,8 @@ const CreateFIR = () => {
     description: '',
     incidentDate: '',
     locationAddress: '',
+    lat: null,
+    lng: null,
     isAnonymous: false,
     attachments: []
   });
@@ -41,12 +63,17 @@ const CreateFIR = () => {
     try {
       let payload;
       
+      const locationObj = { 
+        address: formData.locationAddress,
+        coordinates: formData.lat && formData.lng ? { lat: formData.lat, lng: formData.lng } : undefined
+      };
+
       if (formData.attachments && formData.attachments.length > 0) {
         payload = new FormData();
         payload.append('title', formData.title);
         payload.append('description', formData.description);
         payload.append('incidentDate', formData.incidentDate);
-        payload.append('location', JSON.stringify({ address: formData.locationAddress }));
+        payload.append('location', JSON.stringify(locationObj));
         payload.append('isAnonymous', formData.isAnonymous);
         
         formData.attachments.forEach(file => {
@@ -57,7 +84,7 @@ const CreateFIR = () => {
           title: formData.title,
           description: formData.description,
           incidentDate: formData.incidentDate,
-          location: { address: formData.locationAddress },
+          location: locationObj,
           isAnonymous: formData.isAnonymous
         };
       }
@@ -160,7 +187,7 @@ const CreateFIR = () => {
                   <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 tracking-wide">
                     Location (Address) <span className="text-red-500">*</span>
                   </label>
-                  <div className="relative">
+                  <div className="relative mb-4">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <MapPin className="h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" strokeWidth={1.5} />
                     </div>
@@ -175,6 +202,28 @@ const CreateFIR = () => {
                       minLength={5}
                     />
                   </div>
+                  
+                  {/* Map Picker UI */}
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 tracking-wide">
+                    Pinpoint on Map <span className="text-gray-400 font-normal ml-1">(Click to drop a pin)</span>
+                  </label>
+                  <div className="w-full h-[200px] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm relative z-0">
+                    <MapContainer center={[20.5937, 78.9629]} zoom={4} className="w-full h-full">
+                      <TileLayer
+                        url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+                        attribution="Esri"
+                      />
+                      <LocationMarker 
+                        position={formData.lat && formData.lng ? { lat: formData.lat, lng: formData.lng } : null} 
+                        setPosition={(pos) => setFormData(prev => ({ ...prev, lat: pos.lat, lng: pos.lng }))} 
+                      />
+                    </MapContainer>
+                  </div>
+                  {(!formData.lat || !formData.lng) && (
+                    <p className="text-xs text-amber-500 font-medium mt-2">
+                      Please click on the map to set the exact coordinates for the Crime Map.
+                    </p>
+                  )}
                 </div>
               </div>
 

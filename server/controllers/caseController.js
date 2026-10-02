@@ -168,9 +168,22 @@ const getCaseById = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Case not found' });
     }
 
+    // Security: Police can only view if assigned
+    if (req.user.role === 'police') {
+      if (!investigationCase.assignedOfficer || investigationCase.assignedOfficer._id.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ success: false, message: 'Not authorized to view this case (not assigned to you)' });
+      }
+    }
+
     // Security: Public can only view if it's their FIR
-    if (req.user.role === 'public' && investigationCase.fir.complainant._id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ success: false, message: 'Not authorized to view this case' });
+    if (req.user.role === 'public') {
+      if (investigationCase.fir.complainant._id.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ success: false, message: 'Not authorized to view this case' });
+      }
+      
+      // Data Leak Fix: Strip sensitive arrays for public users
+      investigationCase.suspects = undefined;
+      investigationCase.evidence = undefined;
     }
 
     res.status(200).json({

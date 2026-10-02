@@ -49,7 +49,7 @@ const getFIRs = async (req, res) => {
     const startIndex = (page - 1) * limit;
 
     let query = {};
-    let andConditions = [];
+    let andConditions = [{ isDeleted: { $ne: true } }];
 
     // Public and Police users see only FIRs they personally filed in the registry list
     if (req.user.role === 'public' || req.user.role === 'police') {
@@ -121,7 +121,7 @@ const getFIRs = async (req, res) => {
 
 const getFIRLocations = async (req, res) => {
   try {
-    let query = {};
+    let query = { isDeleted: { $ne: true } };
     
     // Public users only see their own FIRs on the map
     if (req.user.role === 'public') {
@@ -157,7 +157,7 @@ const getFIRById = async (req, res) => {
       .populate('complainant', 'name email phone')
       .populate('assignedOfficer', 'name badgeNumber department');
 
-    if (!fir) {
+    if (!fir || fir.isDeleted) {
       return res.status(404).json({ success: false, message: 'FIR not found' });
     }
 
@@ -287,7 +287,8 @@ const deleteFIR = async (req, res) => {
       return res.status(404).json({ success: false, message: 'FIR not found' });
     }
 
-    await fir.deleteOne();
+    fir.isDeleted = true;
+    await fir.save();
 
     res.status(200).json({
       success: true,
