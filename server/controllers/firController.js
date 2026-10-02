@@ -26,6 +26,19 @@ const createFIR = async (req, res) => {
 
     await auditService.log(req, 'fir_created', 'FIR', fir._id, { firNumber: fir.firNumber });
 
+    // Notify all admins about the new FIR
+    const User = require('../models/User');
+    const admins = await User.find({ role: 'admin' });
+    if (admins.length > 0) {
+      await notificationService.notifyMultiple(admins.map(a => a._id), {
+        sender: req.user._id,
+        type: 'general',
+        title: 'New FIR Submitted',
+        message: `A new FIR (${fir.firNumber}) has been filed and requires review.`,
+        link: `/firs/${fir._id}`
+      });
+    }
+
     res.status(201).json({
       success: true,
       message: 'FIR submitted successfully',
@@ -261,6 +274,17 @@ const updateFIRStatus = async (req, res) => {
             link: `/cases/${existingCase._id}`
          });
       }
+    }
+
+    if (updateFields.status && fir.complainant) {
+      await notificationService.createNotification({
+        recipient: fir.complainant._id || fir.complainant,
+        sender: req.user._id,
+        type: 'general',
+        title: 'FIR Status Updated',
+        message: `Your FIR (${fir.firNumber}) status has been updated to: ${updateFields.status.toUpperCase()}.`,
+        link: `/my-firs`
+      });
     }
 
     await auditService.log(req, 'fir_status_updated', 'FIR', fir._id, updateFields);

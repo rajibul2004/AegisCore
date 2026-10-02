@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import { notificationService } from '../../api/notificationService';
-import { Bell, Check, Circle, ExternalLink, Calendar, Search } from 'lucide-react';
+import { Bell, Check, Circle, ExternalLink, Calendar, Search, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { SocketContext } from '../../context/SocketContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
@@ -74,6 +74,25 @@ const NotificationsList = () => {
     }
   };
 
+  const handleDelete = async (id) => {
+    try {
+      await notificationService.deleteNotification(id);
+      setNotifications(notifications.filter(n => n._id !== id));
+    } catch (error) {
+      console.error('Failed to delete notification', error);
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (!window.confirm("Are you sure you want to delete all notifications?")) return;
+    try {
+      await notificationService.deleteAllNotifications();
+      setNotifications([]);
+    } catch (error) {
+      console.error('Failed to delete all notifications', error);
+    }
+  };
+
   if (loading && notifications.length === 0) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -109,6 +128,15 @@ const NotificationsList = () => {
               className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-lg font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition"
             >
               Mark all as read
+            </button>
+          )}
+          {notifications.length > 0 && (
+            <button
+              onClick={handleDeleteAll}
+              className="flex items-center bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-4 py-2 rounded-lg font-semibold hover:bg-red-100 dark:hover:bg-red-900/50 transition"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Clear All
             </button>
           )}
         </div>
@@ -181,6 +209,13 @@ const NotificationsList = () => {
                       Mark as Read
                     </button>
                   )}
+                  <button 
+                    onClick={() => handleDelete(notif._id)}
+                    className="inline-flex items-center justify-center px-4 py-2 sm:px-3 sm:py-1.5 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-sm font-semibold hover:bg-red-100 dark:hover:bg-red-900/50 transition"
+                    title="Delete Notification"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             ))}
