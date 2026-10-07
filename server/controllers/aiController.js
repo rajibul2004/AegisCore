@@ -9,7 +9,6 @@ const testAI = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please provide a prompt' });
     }
 
-    // Limit prompt length to prevent abuse during testing
     if (prompt.length > 500) {
       return res.status(400).json({ success: false, message: 'Test prompt is too long (max 500 chars)' });
     }

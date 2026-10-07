@@ -2,23 +2,15 @@ const auditService = require('./auditService');
 const Groq = require('groq-sdk');
 const AILog = require('../models/AILog');
 
-/**
- * AI Service Layer
- * Abstracts Groq AI interactions. Keeps the API key purely on the backend.
- * Provides timeout handling, rate limiting detection, and audit logging.
- */
+
 class AIService {
   constructor() {
     this.groq = new Groq({
-      apiKey: process.env.GROQ_API_KEY || 'MISSING_API_KEY' // Fallback to prevent immediate crash if env is missing, but will fail gracefully
+      apiKey: process.env.GROQ_API_KEY || 'MISSING_API_KEY' 
     });
-    // Define the default model for various tasks. Fast/cheap for summaries, big for analysis.
     this.defaultModel = process.env.GROQ_MODEL || 'openai/gpt-oss-20b';
   }
 
-  /**
-   * Safe execution wrapper for AI calls that handles logging and standard errors.
-   */
   async _executeAIOperation(userId, action, prompt, systemPrompt, modelConfig, metadata = {}) {
     const startTime = Date.now();
     let logStatus = 'success';
@@ -68,7 +60,6 @@ class AIService {
     } finally {
       const processingTimeMs = Date.now() - startTime;
       
-      // Fire-and-forget Audit Log
       AILog.create({
         user: userId,
         action,

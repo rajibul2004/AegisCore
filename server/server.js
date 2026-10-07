@@ -23,7 +23,19 @@ const PORT = process.env.PORT || 5000;
 
 app.set('trust proxy', 1); // Trust Render's Load Balancer for secure cookies
 
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      imgSrc: [
+        "'self'",
+        "data:",
+        "https://server.arcgisonline.com",
+        "https://cdnjs.cloudflare.com",
+        "https://raw.githubusercontent.com",
+      ],
+    },
+  },
+}));
 app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" })); // Important for Cloudinary/Map tiles
 
 app.use(cors({
